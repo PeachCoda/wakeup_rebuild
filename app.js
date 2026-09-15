@@ -909,400 +909,7 @@
     return palette[index % palette.length];
   }
   function copyHduCollectorScript() {
-    const script = `(() => {
-  const outputVersion = 3;
-
-  function cleanup(value) {
-    return String(value || "")
-      .replace(/&nbsp;/g, " ")
-      .replace(/[\\t\\r]+/g, " ")
-      .replace(/\\s+/g, " ")
-      .trim();
-  }
-
-  function compact(value) {
-    return cleanup(value).replace(/\\s+/g, "");
-  }
-
-  function first(record, keys) {
-    for (const key of keys) {
-      const value = record[key];
-      if (value !== undefined && value !== null && cleanup(value) && cleanup(value) !== "undefined") return cleanup(value);
-    }
-    const entries = Object.entries(record);
-    for (const key of keys) {
-      const lower = key.toLowerCase();
-      const found = entries.find(([name, value]) => name.toLowerCase().includes(lower) && cleanup(value) && cleanup(value) !== "undefined");
-      if (found) return cleanup(found[1]);
-    }
-    return "";
-  }
-
-  function range(start, end) {
-    const a = Math.min(Number(start), Number(end));
-    const b = Math.max(Number(start), Number(end));
-    return Array.from({ length: b - a + 1 }, (_, index) => a + index).filter((item) => item >= 1 && item <= 17);
-  }
-
-  function uniqueNumbers(values) {
-    return Array.from(new Set(values.map(Number).filter(Number.isFinite))).sort((a, b) => a - b);
-  }
-
-  function weeksFromText(text) {
-    const source = cleanup(text);
-    let weeks = [];
-    let match;
-    const rangePattern = /(\\d{1,2})\\s*(?:-|~|到|至)\\s*(\\d{1,2})\\s*周?/g;
-    while ((match = rangePattern.exec(source))) weeks.push(...range(match[1], match[2]));
-    if (!weeks.length) {
-      const listMatch = source.match(/((?:\\d{1,2}\\s*[,，、]\\s*)+\\d{1,2})\\s*周/);
-      if (listMatch) weeks = listMatch[1].split(/[,，、]/).map(Number);
-    }
-    if (!weeks.length) return [];
-    if (/单周|\\(单\\)|（单）/.test(source)) weeks = weeks.filter((week) => week % 2 === 1);
-    if (/双周|\\(双\\)|（双）/.test(source)) weeks = weeks.filter((week) => week % 2 === 0);
-    return uniqueNumbers(weeks).filter((week) => week >= 1 && week <= 17);
-  }
-
-  function sectionFromText(text) {
-    const source = cleanup(text);
-    const rangeMatch = source.match(/(?:第\\s*)?(1[0-3]|[1-9])\\s*(?:-|~|到|至)\\s*(1[0-3]|[1-9])\\s*节/);
-    if (rangeMatch) return { start: Number(rangeMatch[1]), end: Number(rangeMatch[2]) };
-    const singleMatch = source.match(/(?:第\\s*)?(1[0-3]|[1-9])\\s*节/);
-    if (singleMatch) return { start: Number(singleMatch[1]), end: Number(singleMatch[1]) };
-    return null;
-  }
-
-  function dayFromText(text) {
-    const source = cleanup(text);
-    if (/星期一|周一/.test(source)) return 1;
-    if (/星期二|周二/.test(source)) return 2;
-    if (/星期三|周三/.test(source)) return 3;
-    if (/星期四|周四/.test(source)) return 4;
-    if (/星期五|周五/.test(source)) return 5;
-    return 0;
-  }
-
-  function creditFromRecord(record) {
-    const direct = first(record, ["xf", "xfs", "credit", "credits", "xfmc", "学分"]);
-    const match = direct.match(/\\d+(?:\\.\\d+)?/);
-    if (match && Number(match[0]) > 0 && Number(match[0]) <= 10) return String(Number(match[0])).replace(/\\.0$/, "");
-    for (const [key, value] of Object.entries(record)) {
-      if (/(?:^|[_.-])(?:xf|credit|credits)(?:$|[_.-])|学分/i.test(key)) {
-        const found = cleanup(value).match(/\\d+(?:\\.\\d+)?/);
-        if (found && Number(found[0]) > 0 && Number(found[0]) <= 10) return String(Number(found[0])).replace(/\\.0$/, "");
-      }
-    }
-    return "";
-  }
-
-  function recordToMetadata(record) {
-    const name = compact(first(record, ["kcmc", "kcm", "kcmcText", "courseName", "course", "name"]));
-    if (!name || /红色斜体|蓝色为已选|请选择记录/.test(name)) return null;
-    const teacher = compact(first(record, ["xm", "jsxm", "rkjs", "teacherName", "teacher", "jsmc"]));
-    const credit = creditFromRecord(record);
-    if (!teacher && !credit) return null;
-    return { name, teacher, credit };
-  }
-
-  function mergeMetadata(courses, metadata) {
-    if (!metadata.length) return courses;
-    const exact = new Map();
-    const byName = new Map();
-    metadata.forEach((item) => {
-      exact.set([item.name, item.teacher].join("|"), item);
-      if (!byName.has(item.name)) byName.set(item.name, item);
-    });
-    return courses.map((course) => {
-      const meta = exact.get([course.name, course.teacher].join("|")) || byName.get(course.name);
-      return meta ? { ...course, teacher: course.teacher || meta.teacher || "", credit: course.credit || meta.credit || "" } : course;
-    });
-  }
-
-  function recordToCourse(record) {
-    const name = compact(first(record, ["kcmc", "kcm", "kcmcText", "courseName", "course", "name"]));
-    if (!name || /红色斜体|蓝色为已选|请选择记录/.test(name)) return null;
-    const rawDay = Number(first(record, ["xqj", "xq", "weekDay", "day", "xq"].filter(Boolean)));
-    const day = rawDay || dayFromText(first(record, ["xqjmc", "sksj", "sksjText", "time"]));
-    if (!day || day > 5) return null;
-    const sectionText = first(record, ["jc", "jcs", "skjc", "jcor", "oldjc", "sksj", "time"]);
-    const parsedSection = sectionFromText(sectionText);
-    const start = Number(first(record, ["ksjc", "qsz", "qszj", "start", "startNode"])) || parsedSection?.start;
-    const end = Number(first(record, ["jsjc", "zzz", "jszj", "end", "endNode"])) || parsedSection?.end;
-    if (!start || !end || start > 13) return null;
-    const weeks = weeksFromText(first(record, ["zcd", "zcmc", "oldzc", "skzc", "zc", "weeks", "sksj", "time"])) || [];
-    return {
-      name,
-      day,
-      start: Math.max(1, Math.min(13, start)),
-      end: Math.max(1, Math.min(13, end)),
-      weeks: weeks.length ? weeks : range(1, 17),
-      teacher: compact(first(record, ["xm", "jsxm", "rkjs", "teacherName", "teacher", "jsmc"])),
-      room: compact(first(record, ["cdmc", "jxcdmc", "jxcd", "roomName", "room", "jxdd"])),
-      credit: creditFromRecord(record),
-      note: ""
-    };
-  }
-
-
-  function textOf(element) {
-    const clone = element.cloneNode(true);
-    clone.querySelectorAll("script,style,noscript,input[type='hidden'],input[type=hidden]").forEach((node) => node.remove());
-    clone.querySelectorAll("br").forEach((node) => node.replaceWith("\n"));
-    clone.querySelectorAll("div,p,li,a,span").forEach((node) => node.append("\n"));
-    return String(clone.textContent || "").replace(/[♜♟♞♝♛♚◆●■▶▷]/g, "").replace(/\r/g, "\n").replace(/[\t ]+/g, " ").replace(/\n[\t ]+/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
-  }
-
-  function tableToGrid(table) {
-    const grid = [];
-    const occupied = [];
-    Array.from(table.rows || []).forEach((tr, rowIndex) => {
-      let column = 0;
-      Array.from(tr.cells || []).forEach((td) => {
-        while (occupied[rowIndex]?.[column]) column += 1;
-        const rowspan = Math.max(1, Number(td.getAttribute("rowspan")) || 1);
-        const colspan = Math.max(1, Number(td.getAttribute("colspan")) || 1);
-        const cell = { text: textOf(td), rowspan, colspan, used: false };
-        for (let r = 0; r < rowspan; r += 1) {
-          for (let c = 0; c < colspan; c += 1) {
-            const targetRow = rowIndex + r;
-            const targetColumn = column + c;
-            grid[targetRow] ||= [];
-            occupied[targetRow] ||= [];
-            grid[targetRow][targetColumn] = cell;
-            occupied[targetRow][targetColumn] = true;
-          }
-        }
-        column += colspan;
-      });
-    });
-    return grid;
-  }
-
-  function dayFromHeader(text) {
-    const source = compact(text);
-    if (/^(?:星期|周)?一$/.test(source)) return 1;
-    if (/^(?:星期|周)?二$/.test(source)) return 2;
-    if (/^(?:星期|周)?三$/.test(source)) return 3;
-    if (/^(?:星期|周)?四$/.test(source)) return 4;
-    if (/^(?:星期|周)?五$/.test(source)) return 5;
-    return dayFromText(source);
-  }
-
-  function detectDayColumns(grid) {
-    const best = grid.map((row, index) => ({ row, index, score: row.filter((cell) => cell && dayFromHeader(cell.text)).length })).sort((a, b) => b.score - a.score)[0];
-    if (!best || best.score < 3) return [];
-    return best.row.map((cell, column) => ({ day: cell ? dayFromHeader(cell.text) : 0, column })).filter((item) => item.day >= 1 && item.day <= 5);
-  }
-
-  function detectNodeNumber(row, rowIndex) {
-    for (const cell of row.slice(0, 4)) {
-      const source = cleanup(cell?.text || "");
-      const exact = source.match(/^(?:第\s*)?(1[0-3]|[1-9])\s*(?:节|大节)?(?:\s|$)/);
-      if (exact) return Number(exact[1]);
-    }
-    return rowIndex >= 1 && rowIndex <= 13 ? rowIndex : 0;
-  }
-
-  function isNoiseLine(value) {
-    const source = compact(value);
-    return !source || /^(理论学时|实践学时|实验学时|上机学时|总学时|学时|学分|考试|考查|课程编号|教学班|校区|人数|容量|余量|注|注意|提示|说明)[:：]?/.test(source)
-      || /(?:红色斜体|蓝色为已选|待筛选|已选上|请选择记录)/.test(source)
-      || /^\(?20\d{2}-20\d{2}-\d\)?[-—]/.test(source)
-      || /^\d+(?:\.\d+)?$/.test(source)
-      || /^\d{6,}(?:[;；,，]\d{6,})*$/.test(source);
-  }
-
-  function isRoomLine(value) {
-    const source = compact(value);
-    return /(?:教研楼|教学楼|教室|实验室|机房|田径场|体育馆|校区|不在教室|楼北|楼南|楼中|楼\d|东边|西边|下沙)/.test(source);
-  }
-
-  function isTeacherLine(value) {
-    const source = compact(value);
-    return /^[\u4e00-\u9fa5]{2,4}$/.test(source) && !/[楼室场馆校区周节]/.test(source) && !isNoiseLine(source);
-  }
-
-  function isCourseNameLine(value) {
-    const source = compact(value);
-    if (!source || source.length < 2 || source.length > 45) return false;
-    if (!/[\u4e00-\u9fff]/.test(source)) return false;
-    if (isNoiseLine(source) || isRoomLine(source)) return false;
-    if (isTeacherLine(source) && !/(?:军事|体育|形势|政策|实践|课程|英语|物理|数学|概率|统计|安全|导论|简史|交际|数据结构|信号)/.test(source)) return false;
-    if (sectionFromText(source) || /\d{1,2}\s*(?:-|~|到|至)\s*\d{1,2}\s*周/.test(source)) return false;
-    return true;
-  }
-
-  function parseCellCourses(text, fallbackDay, fallbackStart, fallbackEnd) {
-    const lines = String(text || "").split(/\n+/).map(cleanup).filter((line) => line && !isNoiseLine(line));
-    if (!lines.length) return [];
-    const sectionIndexes = lines.map((line, index) => ({ line, index, section: sectionFromText(line) })).filter((item) => item.section);
-    const makeCourse = (name, section, weeksText, context) => {
-      const room = compact(context.find(isRoomLine) || "");
-      const teacher = compact(context.find((line) => isTeacherLine(line) && compact(line) !== room) || "");
-      const weeks = weeksFromText(weeksText + "\n" + context.join("\n"));
-      return name && section ? {
-        name: compact(name),
-        day: fallbackDay,
-        start: section.start,
-        end: section.end,
-        weeks: weeks.length ? weeks : range(1, 17),
-        teacher,
-        room,
-        credit: "",
-        note: ""
-      } : null;
-    };
-    if (sectionIndexes.length) {
-      return sectionIndexes.map(({ line, index, section }, order) => {
-        const previousBoundary = sectionIndexes[order - 1]?.index ?? -1;
-        const nextBoundary = sectionIndexes[order + 1]?.index ?? lines.length;
-        let name = "";
-        for (let i = index - 1; i > previousBoundary && i >= index - 8; i -= 1) {
-          if (isCourseNameLine(lines[i])) { name = lines[i]; break; }
-        }
-        if (!name) {
-          const inline = cleanup(line).match(/^(.+?)[（(]?\s*(?:第\s*)?(?:1[0-3]|[1-9])\s*(?:-|~|到|至)\s*(?:1[0-3]|[1-9])\s*节/);
-          if (inline && isCourseNameLine(inline[1])) name = inline[1];
-        }
-        if (!name) {
-          for (let i = index + 1; i < nextBoundary && i <= index + 4; i += 1) {
-            if (isCourseNameLine(lines[i])) { name = lines[i]; break; }
-          }
-        }
-        const context = lines.slice(index + 1, Math.min(nextBoundary, index + 8));
-        return makeCourse(name, section, line, context);
-      }).filter(Boolean);
-    }
-    const name = lines.find(isCourseNameLine);
-    if (!name) return [];
-    const section = { start: fallbackStart, end: fallbackEnd };
-    const context = lines.filter((line) => line !== name).slice(0, 8);
-    return [makeCourse(name, section, lines.join("\n"), context)].filter(Boolean);
-  }
-
-  function collectTableCourses(doc) {
-    const courses = [];
-    doc.querySelectorAll("table").forEach((table) => {
-      const grid = tableToGrid(table);
-      const dayColumns = detectDayColumns(grid);
-      if (!dayColumns.length) return;
-      grid.forEach((row, rowIndex) => {
-        const node = detectNodeNumber(row, rowIndex);
-        if (!node) return;
-        dayColumns.forEach(({ day, column }) => {
-          const cell = row[column];
-          if (!cell || cell.used || !cleanup(cell.text)) return;
-          cell.used = true;
-          const end = Math.min(13, node + Math.max(1, cell.rowspan || 1) - 1);
-          parseCellCourses(cell.text, day, node, end).forEach((course) => courses.push(course));
-        });
-      });
-    });
-    return courses;
-  }
-
-  function collectModelRecords(root) {
-    const records = new Map();
-    function put(index, key, value) {
-      if (!records.has(index)) records.set(index, {});
-      records.get(index)[key] = value;
-    }
-    root.querySelectorAll("input[name^='modelList[']").forEach((input) => {
-      const match = input.name.match(/^modelList\\[(\\d+)\\]\\.([^\\]]+)$/);
-      if (match) put(Number(match[1]), match[2], input.value || "");
-    });
-    return Array.from(records.values());
-  }
-
-  function collectFromWindow(win) {
-    const candidates = [];
-    try {
-      ["modelList", "kbList", "courseList", "kblist"].forEach((key) => {
-        if (Array.isArray(win[key])) candidates.push(...win[key]);
-      });
-    } catch (error) {}
-    return candidates.filter((item) => item && typeof item === "object");
-  }
-
-  function collectAll(rootWindow) {
-    const docs = [];
-    function visit(win) {
-      try {
-        docs.push(win.document);
-        Array.from(win.frames || []).forEach(visit);
-      } catch (error) {}
-    }
-    visit(rootWindow);
-    const records = [];
-    docs.forEach((doc) => records.push(...collectModelRecords(doc)));
-    records.push(...collectFromWindow(rootWindow));
-    const metadata = records.map(recordToMetadata).filter(Boolean);
-    const recordCourses = records.map(recordToCourse).filter(Boolean);
-    const tableCourses = [];
-    docs.forEach((doc) => tableCourses.push(...collectTableCourses(doc)));
-    const courses = mergeMetadata([...recordCourses, ...tableCourses], metadata);
-    const seen = new Set();
-    return courses.filter((course) => {
-      const key = [course.name, course.day, course.start, course.end, course.weeks.join(","), course.teacher, course.room].join("|");
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }
-
-  const data = JSON.stringify({
-    source: "fakeup-hdu-collector",
-    version: outputVersion,
-    title: document.title,
-    url: location.href,
-    collectedAt: new Date().toISOString(),
-    courses: collectAll(window)
-  }, null, 2);
-
-  const oldPanel = document.getElementById("fakeup-hdu-copy-panel");
-  if (oldPanel) oldPanel.remove();
-
-  function showManualBox(message) {
-    const panel = document.createElement("div");
-    panel.id = "fakeup-hdu-copy-panel";
-    panel.style.position = "fixed";
-    panel.style.inset = "12px";
-    panel.style.zIndex = "2147483647";
-    panel.style.padding = "12px";
-    panel.style.background = "rgba(255,255,255,.98)";
-    panel.style.border = "2px solid #1677ff";
-    panel.style.boxShadow = "0 12px 40px rgba(0,0,0,.25)";
-    panel.style.display = "grid";
-    panel.style.gridTemplateRows = "auto 1fr auto";
-    panel.style.gap = "8px";
-    const tips = document.createElement("div");
-    tips.textContent = message || "已生成 FakeUp 课表 JSON。回到 FakeUp 粘贴后点‘导入杭电课表’。";
-    tips.style.cssText = "font:14px/1.5 system-ui,sans-serif;color:#111;";
-    const box = document.createElement("textarea");
-    box.value = data;
-    box.style.cssText = "width:100%;height:100%;box-sizing:border-box;font:12px/1.4 ui-monospace,Consolas,monospace;";
-    const close = document.createElement("button");
-    close.textContent = "关闭";
-    close.type = "button";
-    close.style.cssText = "justify-self:end;padding:8px 18px;border:0;border-radius:10px;background:#1677ff;color:#fff;font:14px system-ui,sans-serif;";
-    close.onclick = () => panel.remove();
-    panel.append(tips, box, close);
-    document.body.appendChild(panel);
-    box.focus();
-    box.select();
-    try { document.execCommand("copy"); } catch (error) {}
-  }
-
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(data).then(
-      () => showManualBox("已复制 FakeUp 课表 JSON。回到 FakeUp 粘贴后点‘导入杭电课表’。"),
-      () => showManualBox("浏览器没有允许自动复制。请按 Ctrl+C 复制下面 JSON，再回到 FakeUp 粘贴导入。")
-    );
-  } else {
-    showManualBox("浏览器没有开放剪贴板权限。请按 Ctrl+C 复制下面 JSON，再回到 FakeUp 粘贴导入。")
-  }
-})();`;
+    const script = `(${hduCollectorScriptMain.toString()})();`;
     const copiedMessage = "已复制采集脚本，到教务系统 Console 粘贴运行即可";
     const manualMessage = "复制失败，浏览器没有开放剪贴板权限";
     if (navigator.clipboard && window.isSecureContext) {
@@ -1313,6 +920,406 @@
       return;
     }
     showToast(manualMessage);
+  }
+
+  function hduCollectorScriptMain() {
+    const outputVersion = 4;
+
+    function cleanup(value) {
+      return String(value || "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/[\t\r]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function compact(value) {
+      return cleanup(value).replace(/\s+/g, "");
+    }
+
+    function range(start, end) {
+      const a = Math.min(Number(start), Number(end));
+      const b = Math.max(Number(start), Number(end));
+      return Array.from({ length: b - a + 1 }, (_, index) => a + index).filter((item) => item >= 1 && item <= 17);
+    }
+
+    function uniqueNumbers(values) {
+      return Array.from(new Set(values.map(Number).filter(Number.isFinite))).sort((a, b) => a - b);
+    }
+
+    function first(record, keys) {
+      for (const key of keys) {
+        const value = record[key];
+        if (value !== undefined && value !== null && cleanup(value) && cleanup(value) !== "undefined") return cleanup(value);
+      }
+      const entries = Object.entries(record);
+      for (const key of keys) {
+        const lower = key.toLowerCase();
+        const found = entries.find(([name, value]) => name.toLowerCase().includes(lower) && cleanup(value) && cleanup(value) !== "undefined");
+        if (found) return cleanup(found[1]);
+      }
+      return "";
+    }
+
+    function weeksFromText(text) {
+      const source = cleanup(text);
+      let weeks = [];
+      let match;
+      const rangePattern = /(\d{1,2})\s*(?:-|~|到|至)\s*(\d{1,2})\s*周?/g;
+      while ((match = rangePattern.exec(source))) weeks.push(...range(match[1], match[2]));
+      if (!weeks.length) {
+        const listMatch = source.match(/((?:\d{1,2}\s*[,，、]\s*)+\d{1,2})\s*周/);
+        if (listMatch) weeks = listMatch[1].split(/[,，、]/).map(Number);
+      }
+      if (!weeks.length) return [];
+      if (/单周|\(单\)|（单）/.test(source)) weeks = weeks.filter((week) => week % 2 === 1);
+      if (/双周|\(双\)|（双）/.test(source)) weeks = weeks.filter((week) => week % 2 === 0);
+      return uniqueNumbers(weeks).filter((week) => week >= 1 && week <= 17);
+    }
+
+    function sectionFromText(text) {
+      const source = cleanup(text);
+      const rangeMatch = source.match(/(?:第\s*)?(1[0-3]|[1-9])\s*(?:-|~|到|至)\s*(1[0-3]|[1-9])\s*节/);
+      if (rangeMatch) return { start: Number(rangeMatch[1]), end: Number(rangeMatch[2]) };
+      const singleMatch = source.match(/(?:第\s*)?(1[0-3]|[1-9])\s*节/);
+      if (singleMatch) return { start: Number(singleMatch[1]), end: Number(singleMatch[1]) };
+      return null;
+    }
+
+    function dayFromText(text) {
+      const source = compact(text);
+      if (/星期一|周一|^一$/.test(source)) return 1;
+      if (/星期二|周二|^二$/.test(source)) return 2;
+      if (/星期三|周三|^三$/.test(source)) return 3;
+      if (/星期四|周四|^四$/.test(source)) return 4;
+      if (/星期五|周五|^五$/.test(source)) return 5;
+      return 0;
+    }
+
+    function creditFromRecord(record) {
+      const direct = first(record, ["xf", "xfs", "credit", "credits", "xfmc", "学分"]);
+      const match = direct.match(/\d+(?:\.\d+)?/);
+      if (match && Number(match[0]) > 0 && Number(match[0]) <= 10) return String(Number(match[0])).replace(/\.0$/, "");
+      for (const [key, value] of Object.entries(record)) {
+        if (/(?:^|[_.-])(?:xf|credit|credits)(?:$|[_.-])|学分/i.test(key)) {
+          const found = cleanup(value).match(/\d+(?:\.\d+)?/);
+          if (found && Number(found[0]) > 0 && Number(found[0]) <= 10) return String(Number(found[0])).replace(/\.0$/, "");
+        }
+      }
+      return "";
+    }
+
+    function recordToMetadata(record) {
+      const name = compact(first(record, ["kcmc", "kcm", "kcmcText", "courseName", "course", "name"]));
+      if (!name || /红色斜体|蓝色为已选|请选择记录/.test(name)) return null;
+      const teacher = compact(first(record, ["xm", "jsxm", "rkjs", "teacherName", "teacher", "jsmc"]));
+      const credit = creditFromRecord(record);
+      if (!teacher && !credit) return null;
+      return { name, teacher, credit };
+    }
+
+    function recordToCourse(record) {
+      const name = compact(first(record, ["kcmc", "kcm", "kcmcText", "courseName", "course", "name"]));
+      if (!name || /红色斜体|蓝色为已选|请选择记录/.test(name)) return null;
+      const rawDay = Number(first(record, ["xqj", "xq", "weekDay", "day"]));
+      const day = rawDay || dayFromText(first(record, ["xqjmc", "sksj", "sksjText", "time"]));
+      if (!day || day > 5) return null;
+      const sectionText = first(record, ["jc", "jcs", "skjc", "jcor", "oldjc", "sksj", "time"]);
+      const parsedSection = sectionFromText(sectionText);
+      const start = Number(first(record, ["ksjc", "qsz", "qszj", "start", "startNode"])) || (parsedSection && parsedSection.start);
+      const end = Number(first(record, ["jsjc", "zzz", "jszj", "end", "endNode"])) || (parsedSection && parsedSection.end);
+      if (!start || !end || start > 13) return null;
+      const weeks = weeksFromText(first(record, ["zcd", "zcmc", "oldzc", "skzc", "zc", "weeks", "sksj", "time"]));
+      return {
+        name,
+        day,
+        start: Math.max(1, Math.min(13, start)),
+        end: Math.max(1, Math.min(13, end)),
+        weeks: weeks.length ? weeks : range(1, 17),
+        teacher: compact(first(record, ["xm", "jsxm", "rkjs", "teacherName", "teacher", "jsmc"])),
+        room: compact(first(record, ["cdmc", "jxcdmc", "jxcd", "roomName", "room", "jxdd"])),
+        credit: creditFromRecord(record),
+        note: ""
+      };
+    }
+
+    function textOf(element) {
+      const clone = element.cloneNode(true);
+      clone.querySelectorAll("script,style,noscript,input[type='hidden'],input[type=hidden]").forEach((node) => node.remove());
+      clone.querySelectorAll("br").forEach((node) => node.replaceWith("\n"));
+      clone.querySelectorAll("div,p,li,a,span").forEach((node) => node.append("\n"));
+      return String(clone.textContent || "")
+        .replace(/[♜♟♞♝♛♚◆●■▶▷]/g, "")
+        .replace(/\r/g, "\n")
+        .replace(/[\t ]+/g, " ")
+        .replace(/\n[\t ]+/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+
+    function tableToGrid(table) {
+      const grid = [];
+      const occupied = [];
+      Array.from(table.rows || []).forEach((tr, rowIndex) => {
+        let column = 0;
+        Array.from(tr.cells || []).forEach((td) => {
+          while (occupied[rowIndex]?.[column]) column += 1;
+          const rowspan = Math.max(1, Number(td.getAttribute("rowspan")) || 1);
+          const colspan = Math.max(1, Number(td.getAttribute("colspan")) || 1);
+          const cell = { text: textOf(td), rowspan, colspan, used: false };
+          for (let r = 0; r < rowspan; r += 1) {
+            for (let c = 0; c < colspan; c += 1) {
+              const targetRow = rowIndex + r;
+              const targetColumn = column + c;
+              grid[targetRow] ||= [];
+              occupied[targetRow] ||= [];
+              grid[targetRow][targetColumn] = cell;
+              occupied[targetRow][targetColumn] = true;
+            }
+          }
+          column += colspan;
+        });
+      });
+      return grid;
+    }
+
+    function dayFromHeader(text) {
+      const source = compact(text);
+      if (/^(?:星期|周)?一$/.test(source)) return 1;
+      if (/^(?:星期|周)?二$/.test(source)) return 2;
+      if (/^(?:星期|周)?三$/.test(source)) return 3;
+      if (/^(?:星期|周)?四$/.test(source)) return 4;
+      if (/^(?:星期|周)?五$/.test(source)) return 5;
+      return dayFromText(source);
+    }
+
+    function detectDayColumns(grid) {
+      const best = grid.map((row) => ({ row, score: row.filter((cell) => cell && dayFromHeader(cell.text)).length })).sort((a, b) => b.score - a.score)[0];
+      if (!best || best.score < 3) return [];
+      return best.row.map((cell, column) => ({ day: cell ? dayFromHeader(cell.text) : 0, column })).filter((item) => item.day >= 1 && item.day <= 5);
+    }
+
+    function detectNodeNumber(row, rowIndex) {
+      for (const cell of row.slice(0, 4)) {
+        const source = cleanup((cell && cell.text) || "");
+        const exact = source.match(/^(?:第\s*)?(1[0-3]|[1-9])\s*(?:节|大节)?(?:\s|$)/);
+        if (exact) return Number(exact[1]);
+      }
+      return rowIndex >= 1 && rowIndex <= 13 ? rowIndex : 0;
+    }
+
+    function isNoiseLine(value) {
+      const source = compact(value);
+      return !source || /^(理论学时|实践学时|实验学时|上机学时|总学时|学时|学分|考试|考查|课程编号|教学班|校区|人数|容量|余量|注|注意|提示|说明)[:：]?/.test(source)
+        || /(?:红色斜体|蓝色为已选|待筛选|已选上|请选择记录)/.test(source)
+        || /^\(?20\d{2}-20\d{2}-\d\)?[-—]/.test(source)
+        || /^\d+(?:\.\d+)?$/.test(source)
+        || /^\d{6,}(?:[;；,，]\d{6,})*$/.test(source);
+    }
+
+    function isRoomLine(value) {
+      const source = compact(value);
+      return /(?:教研楼|教学楼|教室|实验室|机房|田径场|体育馆|校区|不在教室|楼北|楼南|楼中|楼\d|东边|西边|下沙)/.test(source);
+    }
+
+    function isTeacherLine(value) {
+      const source = compact(value);
+      return /^[\u4e00-\u9fa5]{2,4}$/.test(source) && !/[楼室场馆校区周节]/.test(source) && !isNoiseLine(source);
+    }
+
+    function isCourseNameLine(value) {
+      const source = compact(value);
+      if (!source || source.length < 2 || source.length > 45) return false;
+      if (!/[\u4e00-\u9fff]/.test(source)) return false;
+      if (isNoiseLine(source) || isRoomLine(source)) return false;
+      if (isTeacherLine(source) && !/(?:军事|体育|形势|政策|实践|课程|英语|物理|数学|概率|统计|安全|导论|简史|交际|数据结构|信号)/.test(source)) return false;
+      if (sectionFromText(source) || /\d{1,2}\s*(?:-|~|到|至)\s*\d{1,2}\s*周/.test(source)) return false;
+      return true;
+    }
+
+    function parseCellCourses(text, fallbackDay, fallbackStart, fallbackEnd) {
+      const lines = String(text || "").split(/\n+/).map(cleanup).filter((line) => line && !isNoiseLine(line));
+      if (!lines.length) return [];
+      const sectionIndexes = lines.map((line, index) => ({ line, index, section: sectionFromText(line) })).filter((item) => item.section);
+      const makeCourse = (name, section, weeksText, context) => {
+        const room = compact(context.find(isRoomLine) || "");
+        const teacher = compact(context.find((line) => isTeacherLine(line) && compact(line) !== room) || "");
+        const weeks = weeksFromText(weeksText + "\n" + context.join("\n"));
+        return name && section ? {
+          name: compact(name),
+          day: fallbackDay,
+          start: section.start,
+          end: section.end,
+          weeks: weeks.length ? weeks : range(1, 17),
+          teacher,
+          room,
+          credit: "",
+          note: ""
+        } : null;
+      };
+      if (sectionIndexes.length) {
+        return sectionIndexes.map(({ line, index, section }, order) => {
+          const previousBoundary = sectionIndexes[order - 1]?.index ?? -1;
+          const nextBoundary = sectionIndexes[order + 1]?.index ?? lines.length;
+          let name = "";
+          for (let i = index - 1; i > previousBoundary && i >= index - 8; i -= 1) {
+            if (isCourseNameLine(lines[i])) { name = lines[i]; break; }
+          }
+          if (!name) {
+            const inline = cleanup(line).match(/^(.+?)[（(]?\s*(?:第\s*)?(?:1[0-3]|[1-9])\s*(?:-|~|到|至)\s*(?:1[0-3]|[1-9])\s*节/);
+            if (inline && isCourseNameLine(inline[1])) name = inline[1];
+          }
+          if (!name) {
+            for (let i = index + 1; i < nextBoundary && i <= index + 4; i += 1) {
+              if (isCourseNameLine(lines[i])) { name = lines[i]; break; }
+            }
+          }
+          const context = lines.slice(index + 1, Math.min(nextBoundary, index + 8));
+          return makeCourse(name, section, line, context);
+        }).filter(Boolean);
+      }
+      const name = lines.find(isCourseNameLine);
+      if (!name) return [];
+      const section = { start: fallbackStart, end: fallbackEnd };
+      const context = lines.filter((line) => line !== name).slice(0, 8);
+      return [makeCourse(name, section, lines.join("\n"), context)].filter(Boolean);
+    }
+
+    function collectTableCourses(doc) {
+      const courses = [];
+      doc.querySelectorAll("table").forEach((table) => {
+        const grid = tableToGrid(table);
+        const dayColumns = detectDayColumns(grid);
+        if (!dayColumns.length) return;
+        grid.forEach((row, rowIndex) => {
+          const node = detectNodeNumber(row, rowIndex);
+          if (!node) return;
+          dayColumns.forEach(({ day, column }) => {
+            const cell = row[column];
+            if (!cell || cell.used || !cleanup(cell.text)) return;
+            cell.used = true;
+            const end = Math.min(13, node + Math.max(1, cell.rowspan || 1) - 1);
+            parseCellCourses(cell.text, day, node, end).forEach((course) => courses.push(course));
+          });
+        });
+      });
+      return courses;
+    }
+
+    function collectModelRecords(root) {
+      const records = new Map();
+      function put(index, key, value) {
+        if (!records.has(index)) records.set(index, {});
+        records.get(index)[key] = value;
+      }
+      root.querySelectorAll("input[name^='modelList[']").forEach((input) => {
+        const match = input.name.match(/^modelList\[(\d+)\]\.([^\]]+)$/);
+        if (match) put(Number(match[1]), match[2], input.value || "");
+      });
+      return Array.from(records.values());
+    }
+
+    function collectFromWindow(win) {
+      const candidates = [];
+      try {
+        ["modelList", "kbList", "courseList", "kblist"].forEach((key) => {
+          if (Array.isArray(win[key])) candidates.push(...win[key]);
+        });
+      } catch (error) {}
+      return candidates.filter((item) => item && typeof item === "object");
+    }
+
+    function mergeMetadata(courses, metadata) {
+      if (!metadata.length) return courses;
+      const exact = new Map();
+      const byName = new Map();
+      metadata.forEach((item) => {
+        exact.set([item.name, item.teacher].join("|"), item);
+        if (!byName.has(item.name)) byName.set(item.name, item);
+      });
+      return courses.map((course) => {
+        const meta = exact.get([course.name, course.teacher].join("|")) || byName.get(course.name);
+        return meta ? { ...course, teacher: course.teacher || meta.teacher || "", credit: course.credit || meta.credit || "" } : course;
+      });
+    }
+
+    function collectAll(rootWindow) {
+      const docs = [];
+      function visit(win) {
+        try {
+          docs.push(win.document);
+          Array.from(win.frames || []).forEach(visit);
+        } catch (error) {}
+      }
+      visit(rootWindow);
+      const records = [];
+      docs.forEach((doc) => records.push(...collectModelRecords(doc)));
+      records.push(...collectFromWindow(rootWindow));
+      const metadata = records.map(recordToMetadata).filter(Boolean);
+      const recordCourses = records.map(recordToCourse).filter(Boolean);
+      const tableCourses = [];
+      docs.forEach((doc) => tableCourses.push(...collectTableCourses(doc)));
+      const courses = mergeMetadata([...recordCourses, ...tableCourses], metadata);
+      const seen = new Set();
+      return courses.filter((course) => {
+        const key = [course.name, course.day, course.start, course.end, course.weeks.join(","), course.teacher, course.room].join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    const data = JSON.stringify({
+      source: "fakeup-hdu-collector",
+      version: outputVersion,
+      title: document.title,
+      url: location.href,
+      collectedAt: new Date().toISOString(),
+      courses: collectAll(window)
+    }, null, 2);
+
+    const oldPanel = document.getElementById("fakeup-hdu-copy-panel");
+    if (oldPanel) oldPanel.remove();
+
+    function showManualBox(message) {
+      const panel = document.createElement("div");
+      panel.id = "fakeup-hdu-copy-panel";
+      panel.style.position = "fixed";
+      panel.style.inset = "12px";
+      panel.style.zIndex = "2147483647";
+      panel.style.padding = "12px";
+      panel.style.background = "rgba(255,255,255,.98)";
+      panel.style.border = "2px solid #1677ff";
+      panel.style.boxShadow = "0 12px 40px rgba(0,0,0,.25)";
+      panel.style.display = "grid";
+      panel.style.gridTemplateRows = "auto 1fr auto";
+      panel.style.gap = "8px";
+      const tips = document.createElement("div");
+      tips.textContent = message || "已生成 FakeUp 课表 JSON。回到 FakeUp 粘贴后点‘导入杭电课表’。";
+      tips.style.cssText = "font:14px/1.5 system-ui,sans-serif;color:#111;";
+      const box = document.createElement("textarea");
+      box.value = data;
+      box.style.cssText = "width:100%;height:100%;box-sizing:border-box;font:12px/1.4 ui-monospace,Consolas,monospace;";
+      const close = document.createElement("button");
+      close.textContent = "关闭";
+      close.type = "button";
+      close.style.cssText = "justify-self:end;padding:8px 18px;border:0;border-radius:10px;background:#1677ff;color:#fff;font:14px system-ui,sans-serif;";
+      close.onclick = () => panel.remove();
+      panel.append(tips, box, close);
+      document.body.appendChild(panel);
+      box.focus();
+      box.select();
+      try { document.execCommand("copy"); } catch (error) {}
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(data).then(
+        () => showManualBox("已复制 FakeUp 课表 JSON。回到 FakeUp 粘贴后点‘导入杭电课表’。"),
+        () => showManualBox("浏览器没有允许自动复制。请按 Ctrl+C 复制下面 JSON，再回到 FakeUp 粘贴导入。")
+      );
+    } else {
+      showManualBox("浏览器没有开放剪贴板权限。请按 Ctrl+C 复制下面 JSON，再回到 FakeUp 粘贴导入。")
+    }
   }
   function isHduScheduleUrl(raw) {
     return /^https?:\/\/\S+$/i.test(raw) && /(newjw\.hdu\.edu\.cn|jwglxt|kbcx|xskbcx)/i.test(raw);
