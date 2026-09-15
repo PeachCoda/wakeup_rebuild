@@ -19,7 +19,7 @@
 - 自定义一天节数、学期总周数、上课时间表。
 - Android 桌面小组件和 APK 内置资源。
 
-## 运行
+## 本地运行
 
 项目没有构建依赖，直接用浏览器打开 `index.html` 即可。也可以在目录里启动一个静态服务器：
 
@@ -33,35 +33,42 @@ node -e "const http=require('http'),fs=require('fs'),path=require('path');const 
 http://localhost:5174
 ```
 
-## 部署到 Vercel
+## 部署到云服务器
 
-这个仓库按纯静态站准备，部署方式可以和 `PeachCoda/fuwari-blog` 一样使用 Vercel。
+这是纯静态网页。把下面这些文件上传到云服务器的站点目录即可：
 
-在 Vercel 新建项目时选择 GitHub 仓库：
+- `index.html`
+- `styles.css`
+- `app.js`
+- `docs/`
 
-```text
-PeachCoda/wakeup_rebuild
+如果使用 Nginx，可以给新子域名配置一个静态站点，例如 `schedule.c0d4.ink`：
+
+```nginx
+server {
+    listen 80;
+    server_name schedule.c0d4.ink;
+
+    root /var/www/schedule;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
 ```
 
-项目设置：
-
-- Framework Preset：Other
-- Build Command：留空
-- Output Directory：`.` 或留空
-- Install Command：留空
-
-部署成功后，在 Vercel 项目的 Domains 里添加新的子域名，例如：
+DNS 侧给新子域名添加一条记录，指向云服务器：
 
 ```text
-schedule.c0d4.ink
+schedule.c0d4.ink  A  你的服务器 IPv4
 ```
 
-如果 `c0d4.ink` 的 DNS 也在 Vercel 管理，添加后会自动配置。否则按 Vercel 给出的提示，在 DNS 服务商处添加 CNAME 记录，通常是把 `schedule` 指向 Vercel 提供的目标。
+如果服务器已有 HTTPS 证书管理工具，可以按现有博客站点的方式给新子域名签发证书。
 
 ## 代码结构
 
 - `index.html`：页面骨架和弹窗结构。
 - `styles.css`：布局、课表网格、课程卡片、弹窗和响应式样式。
 - `app.js`：状态管理、导入解析、课程渲染和本地保存。
-- `vercel.json`：Vercel 静态站配置。
 - `base/`：APK 解包内容，仅作为功能分析参考，不需要发布到网站。
