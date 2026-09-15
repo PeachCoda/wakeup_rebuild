@@ -1801,7 +1801,7 @@
 
 
   function isShortCourseName(value) {
-    return /(?:大学军事|军事理论|体育|形势|政策|实践|课程|英语|物理|高数|数学|概率|统计|安全|导论|简史|交际)/.test(cleanupField(value));
+    return /(?:大学军事|军事理论|体育|形势|政策|实践|课程|英语|物理|高数|数学|概率|统计|安全|导论|简史|交际|数据结构|结构|信号|系统|算法|数据库|程序|网络|人工智能|创新|创业|法律|风险|科技|发展|简史|概论)/.test(cleanupField(value));
   }
 
   function hasCourseLikeSignal(value) {
