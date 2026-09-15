@@ -838,12 +838,12 @@
       return;
     }
     if (isHduScheduleUrl(raw)) {
-      showToast("这是课表网址，请复制页面内容或先运行采集脚本");
+      showToast("这是课表网址，请先运行采集脚本生成 FakeUp 课表 JSON");
       return;
     }
     const parsed = parseHduSchedule(raw);
     if (!parsed.length) {
-      showToast("没有识别到课程，请粘贴完整课表页面或 HTML");
+      showToast("没有识别到课程，请粘贴采集脚本生成的 FakeUp 课表 JSON");
       return;
     }
     const schedule = currentSchedule();
@@ -868,7 +868,7 @@
     const groups = new Map();
     courses.forEach((course) => {
       if (!course || !course.name) return;
-      const key = [cleanupField(course.name), cleanupField(course.teacher || "")].join("|");
+      const key = cleanupField(course.name);
       if (!groups.has(key)) {
         groups.set(key, {
           name: course.name,
@@ -879,6 +879,7 @@
         });
       }
       const group = groups.get(key);
+      if (!group.teacher && course.teacher) group.teacher = course.teacher;
       if (!group.credit && course.credit) group.credit = course.credit;
       group.sessions.push({
         day: course.day,
@@ -909,28 +910,177 @@
   }
   function copyHduCollectorScript() {
     const script = `(() => {
-  function getPageHtml(root) {
-    let html = "";
-    try {
-      html += root.documentElement ? root.documentElement.innerHTML : root.innerHTML;
-    } catch (error) {}
-    const frames = [];
-    try { frames.push(...root.getElementsByTagName("iframe")); } catch (error) {}
-    try { frames.push(...root.getElementsByTagName("frame")); } catch (error) {}
-    frames.forEach((frame) => {
-      try {
-        const doc = frame.contentDocument || frame.contentWindow.document;
-        html += "\\n" + getPageHtml(doc);
-      } catch (error) {}
-    });
-    return html;
+  const outputVersion = 2;
+
+  function cleanup(value) {
+    return String(value || "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/[\\t\\r]+/g, " ")
+      .replace(/\\s+/g, " ")
+      .trim();
   }
-  const oldPanel = document.getElementById("clean-schedule-copy-panel");
+
+  function compact(value) {
+    return cleanup(value).replace(/\\s+/g, "");
+  }
+
+  function first(record, keys) {
+    for (const key of keys) {
+      const value = record[key];
+      if (value !== undefined && value !== null && cleanup(value) && cleanup(value) !== "undefined") return cleanup(value);
+    }
+    const entries = Object.entries(record);
+    for (const key of keys) {
+      const lower = key.toLowerCase();
+      const found = entries.find(([name, value]) => name.toLowerCase().includes(lower) && cleanup(value) && cleanup(value) !== "undefined");
+      if (found) return cleanup(found[1]);
+    }
+    return "";
+  }
+
+  function range(start, end) {
+    const a = Math.min(Number(start), Number(end));
+    const b = Math.max(Number(start), Number(end));
+    return Array.from({ length: b - a + 1 }, (_, index) => a + index).filter((item) => item >= 1 && item <= 17);
+  }
+
+  function uniqueNumbers(values) {
+    return Array.from(new Set(values.map(Number).filter(Number.isFinite))).sort((a, b) => a - b);
+  }
+
+  function weeksFromText(text) {
+    const source = cleanup(text);
+    let weeks = [];
+    let match;
+    const rangePattern = /(\\d{1,2})\\s*(?:-|~|到|至)\\s*(\\d{1,2})\\s*周?/g;
+    while ((match = rangePattern.exec(source))) weeks.push(...range(match[1], match[2]));
+    if (!weeks.length) {
+      const listMatch = source.match(/((?:\\d{1,2}\\s*[,，、]\\s*)+\\d{1,2})\\s*周/);
+      if (listMatch) weeks = listMatch[1].split(/[,，、]/).map(Number);
+    }
+    if (!weeks.length) return [];
+    if (/单周|\\(单\\)|（单）/.test(source)) weeks = weeks.filter((week) => week % 2 === 1);
+    if (/双周|\\(双\\)|（双）/.test(source)) weeks = weeks.filter((week) => week % 2 === 0);
+    return uniqueNumbers(weeks).filter((week) => week >= 1 && week <= 17);
+  }
+
+  function sectionFromText(text) {
+    const source = cleanup(text);
+    const rangeMatch = source.match(/(?:第\\s*)?(1[0-3]|[1-9])\\s*(?:-|~|到|至)\\s*(1[0-3]|[1-9])\\s*节/);
+    if (rangeMatch) return { start: Number(rangeMatch[1]), end: Number(rangeMatch[2]) };
+    const singleMatch = source.match(/(?:第\\s*)?(1[0-3]|[1-9])\\s*节/);
+    if (singleMatch) return { start: Number(singleMatch[1]), end: Number(singleMatch[1]) };
+    return null;
+  }
+
+  function dayFromText(text) {
+    const source = cleanup(text);
+    if (/星期一|周一/.test(source)) return 1;
+    if (/星期二|周二/.test(source)) return 2;
+    if (/星期三|周三/.test(source)) return 3;
+    if (/星期四|周四/.test(source)) return 4;
+    if (/星期五|周五/.test(source)) return 5;
+    return 0;
+  }
+
+  function creditFromRecord(record) {
+    const direct = first(record, ["xf", "xfs", "credit", "credits", "xfmc", "学分"]);
+    const match = direct.match(/\\d+(?:\\.\\d+)?/);
+    if (match && Number(match[0]) > 0 && Number(match[0]) <= 10) return String(Number(match[0])).replace(/\\.0$/, "");
+    for (const [key, value] of Object.entries(record)) {
+      if (/(?:^|[_.-])(?:xf|credit|credits)(?:$|[_.-])|学分/i.test(key)) {
+        const found = cleanup(value).match(/\\d+(?:\\.\\d+)?/);
+        if (found && Number(found[0]) > 0 && Number(found[0]) <= 10) return String(Number(found[0])).replace(/\\.0$/, "");
+      }
+    }
+    return "";
+  }
+
+  function recordToCourse(record) {
+    const name = compact(first(record, ["kcmc", "kcm", "kcmcText", "courseName", "course", "name"]));
+    if (!name || /红色斜体|蓝色为已选|请选择记录/.test(name)) return null;
+    const rawDay = Number(first(record, ["xqj", "xq", "weekDay", "day", "xq"].filter(Boolean)));
+    const day = rawDay || dayFromText(first(record, ["xqjmc", "sksj", "sksjText", "time"]));
+    if (!day || day > 5) return null;
+    const sectionText = first(record, ["jc", "jcs", "skjc", "jcor", "oldjc", "sksj", "time"]);
+    const parsedSection = sectionFromText(sectionText);
+    const start = Number(first(record, ["ksjc", "qsz", "qszj", "start", "startNode"])) || parsedSection?.start;
+    const end = Number(first(record, ["jsjc", "zzz", "jszj", "end", "endNode"])) || parsedSection?.end;
+    if (!start || !end || start > 13) return null;
+    const weeks = weeksFromText(first(record, ["zcd", "zcmc", "oldzc", "skzc", "zc", "weeks", "sksj", "time"])) || [];
+    return {
+      name,
+      day,
+      start: Math.max(1, Math.min(13, start)),
+      end: Math.max(1, Math.min(13, end)),
+      weeks: weeks.length ? weeks : range(1, 17),
+      teacher: compact(first(record, ["xm", "jsxm", "rkjs", "teacherName", "teacher", "jsmc"])),
+      room: compact(first(record, ["cdmc", "jxcdmc", "jxcd", "roomName", "room", "jxdd"])),
+      credit: creditFromRecord(record),
+      note: ""
+    };
+  }
+
+  function collectModelRecords(root) {
+    const records = new Map();
+    function put(index, key, value) {
+      if (!records.has(index)) records.set(index, {});
+      records.get(index)[key] = value;
+    }
+    root.querySelectorAll("input[name^='modelList[']").forEach((input) => {
+      const match = input.name.match(/^modelList\\[(\\d+)\\]\\.([^\\]]+)$/);
+      if (match) put(Number(match[1]), match[2], input.value || "");
+    });
+    return Array.from(records.values());
+  }
+
+  function collectFromWindow(win) {
+    const candidates = [];
+    try {
+      ["modelList", "kbList", "courseList", "kblist"].forEach((key) => {
+        if (Array.isArray(win[key])) candidates.push(...win[key]);
+      });
+    } catch (error) {}
+    return candidates.filter((item) => item && typeof item === "object");
+  }
+
+  function collectAll(rootWindow) {
+    const docs = [];
+    function visit(win) {
+      try {
+        docs.push(win.document);
+        Array.from(win.frames || []).forEach(visit);
+      } catch (error) {}
+    }
+    visit(rootWindow);
+    const records = [];
+    docs.forEach((doc) => records.push(...collectModelRecords(doc)));
+    records.push(...collectFromWindow(rootWindow));
+    const courses = records.map(recordToCourse).filter(Boolean);
+    const seen = new Set();
+    return courses.filter((course) => {
+      const key = [course.name, course.day, course.start, course.end, course.weeks.join(","), course.teacher, course.room].join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  const data = JSON.stringify({
+    source: "fakeup-hdu-collector",
+    version: outputVersion,
+    title: document.title,
+    url: location.href,
+    collectedAt: new Date().toISOString(),
+    courses: collectAll(window)
+  }, null, 2);
+
+  const oldPanel = document.getElementById("fakeup-hdu-copy-panel");
   if (oldPanel) oldPanel.remove();
-  const data = getPageHtml(document);
+
   function showManualBox(message) {
     const panel = document.createElement("div");
-    panel.id = "clean-schedule-copy-panel";
+    panel.id = "fakeup-hdu-copy-panel";
     panel.style.position = "fixed";
     panel.style.inset = "12px";
     panel.style.zIndex = "2147483647";
@@ -942,7 +1092,7 @@
     panel.style.gridTemplateRows = "auto 1fr auto";
     panel.style.gap = "8px";
     const tips = document.createElement("div");
-    tips.textContent = message || "已选中课表页面内容。复制成功后回到FakeUp粘贴导入；点右下角关闭可移除此框。";
+    tips.textContent = message || "已生成 FakeUp 课表 JSON。回到 FakeUp 粘贴后点‘导入杭电课表’。";
     tips.style.cssText = "font:14px/1.5 system-ui,sans-serif;color:#111;";
     const box = document.createElement("textarea");
     box.value = data;
@@ -958,13 +1108,14 @@
     box.select();
     try { document.execCommand("copy"); } catch (error) {}
   }
+
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(data).then(
-      () => showManualBox("已尝试复制课表页面内容。回到FakeUp粘贴导入；如果粘贴不到，请复制下面已选中的内容。"),
-      () => showManualBox("浏览器没有允许自动复制。请按 Ctrl+C 复制下面已选中的内容，再回到FakeUp粘贴导入。")
+      () => showManualBox("已复制 FakeUp 课表 JSON。回到 FakeUp 粘贴后点‘导入杭电课表’。"),
+      () => showManualBox("浏览器没有允许自动复制。请按 Ctrl+C 复制下面 JSON，再回到 FakeUp 粘贴导入。")
     );
   } else {
-    showManualBox("浏览器没有开放剪贴板权限。请按 Ctrl+C 复制下面已选中的内容，再回到FakeUp粘贴导入。")
+    showManualBox("浏览器没有开放剪贴板权限。请按 Ctrl+C 复制下面 JSON，再回到 FakeUp 粘贴导入。")
   }
 })();`;
     const copiedMessage = "已复制采集脚本，到教务系统 Console 粘贴运行即可";
@@ -982,10 +1133,34 @@
     return /^https?:\/\/\S+$/i.test(raw) && /(newjw\.hdu\.edu\.cn|jwglxt|kbcx|xskbcx)/i.test(raw);
   }
   function parseHduSchedule(raw) {
+    const structuredCourses = parseHduStructuredJson(raw);
+    if (structuredCourses.length) return dedupeImportedCourses(structuredCourses);
     const htmlCourses = raw.includes("<") && raw.includes(">") ? parseHduHtml(raw) : [];
     if (htmlCourses.length) return dedupeImportedCourses(htmlCourses);
     const textCourses = parseHduText(raw);
     return dedupeImportedCourses(textCourses);
+  }
+
+  function parseHduStructuredJson(raw) {
+    const source = String(raw || "").trim();
+    if (!source.startsWith("{")) return [];
+    try {
+      const payload = JSON.parse(source);
+      if (!payload || payload.source !== "fakeup-hdu-collector" || !Array.isArray(payload.courses)) return [];
+      return payload.courses.map((course) => ({
+        name: cleanupField(course.name),
+        day: Number(course.day),
+        start: Number(course.start),
+        end: Number(course.end),
+        weeks: uniqueNumbers(course.weeks || []).filter((week) => week >= 1 && week <= termWeeks),
+        teacher: cleanupField(course.teacher || ""),
+        room: cleanupField(course.room || ""),
+        credit: course.credit ? formatCredit(course.credit) || String(course.credit).slice(0, 8) : "",
+        note: ""
+      })).filter((course) => course.name && course.day && course.start && course.end && course.weeks.length);
+    } catch (error) {
+      return [];
+    }
   }
 
   function parseHduHtml(raw) {
@@ -1720,3 +1895,4 @@
 
   render();
 })();
+

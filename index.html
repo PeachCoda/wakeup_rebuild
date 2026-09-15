@@ -123,12 +123,12 @@
         </header>
 
         <div class="import-tools">
-          <p>支持两种导入：粘贴本站导出的 JSON，或在杭电教务系统打开个人课表后复制页面内容/HTML 粘贴到这里。导入过程完全在浏览器本地完成，不保存教务账号密码。只粘贴课表网址无法导入，因为网址本身不包含课程数据。</p>
+          <p>推荐导入方式：先点“复制页面采集脚本”，到杭电教务系统个人课表页的 Console 粘贴运行；脚本会复制结构化课表 JSON，再粘回这里导入。也兼容本站导出的 JSON；旧的页面 HTML 只能作为兜底。导入过程完全在浏览器本地完成，不保存教务账号密码。</p>
           <div class="import-helper">
             <button class="plain-button" id="copyHduCollectorBtn" type="button">复制页面采集脚本</button>
-            <span>在教务系统课表页打开开发者工具 Console，粘贴运行后，再把复制出的内容粘到下方。</span>
+            <span>在教务系统课表页打开开发者工具 Console，粘贴运行后，把自动复制出的 FakeUp 课表 JSON 粘到下方。</span>
           </div>
-          <textarea id="importText" rows="10" placeholder="粘贴 JSON，或杭电教务系统课表页面复制出来的 HTML/文本"></textarea>
+          <textarea id="importText" rows="10" placeholder="粘贴 FakeUp 课表 JSON，或本站导出的 JSON；旧 HTML 仅兜底"></textarea>
           <div class="dialog-actions compact-actions">
             <button class="plain-button" id="exportBtn" type="button">导出 JSON</button>
             <button class="plain-button" id="importBtn" type="button">导入 JSON</button>
@@ -140,8 +140,9 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-ui-3"></script>
+    <script src="./app.js?v=fakeup-hdu-json-1"></script>
   </body>
 </html>
+
 
 
