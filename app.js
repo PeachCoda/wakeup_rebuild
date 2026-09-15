@@ -942,7 +942,7 @@
     panel.style.gridTemplateRows = "auto 1fr auto";
     panel.style.gap = "8px";
     const tips = document.createElement("div");
-    tips.textContent = message || "已选中课表页面内容。复制成功后回到清课表粘贴导入；点右下角关闭可移除此框。";
+    tips.textContent = message || "已选中课表页面内容。复制成功后回到FakeUp粘贴导入；点右下角关闭可移除此框。";
     tips.style.cssText = "font:14px/1.5 system-ui,sans-serif;color:#111;";
     const box = document.createElement("textarea");
     box.value = data;
@@ -960,11 +960,11 @@
   }
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(data).then(
-      () => showManualBox("已尝试复制课表页面内容。回到清课表粘贴导入；如果粘贴不到，请复制下面已选中的内容。"),
-      () => showManualBox("浏览器没有允许自动复制。请按 Ctrl+C 复制下面已选中的内容，再回到清课表粘贴导入。")
+      () => showManualBox("已尝试复制课表页面内容。回到FakeUp粘贴导入；如果粘贴不到，请复制下面已选中的内容。"),
+      () => showManualBox("浏览器没有允许自动复制。请按 Ctrl+C 复制下面已选中的内容，再回到FakeUp粘贴导入。")
     );
   } else {
-    showManualBox("浏览器没有开放剪贴板权限。请按 Ctrl+C 复制下面已选中的内容，再回到清课表粘贴导入。")
+    showManualBox("浏览器没有开放剪贴板权限。请按 Ctrl+C 复制下面已选中的内容，再回到FakeUp粘贴导入。")
   }
 })();`;
     const copiedMessage = "已复制采集脚本，到教务系统 Console 粘贴运行即可";

@@ -1151,3 +1151,190 @@ button:disabled {
     line-height: 1.16;
   }
 }
+/* FakeUp narrow timetable shell: keep the WakeUp-like phone layout on every viewport. */
+:root {
+  --phone-width: 520px;
+  --time-width: 66px;
+  --cell-height: 88px;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  background: #e8eef5;
+  font-family: "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+.import-tools textarea {
+  font-family: "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+
+.app-shell {
+  display: block !important;
+  width: min(100vw, var(--phone-width)) !important;
+  max-width: var(--phone-width) !important;
+  min-width: 0 !important;
+  min-height: 100svh;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(31, 41, 55, 0.06), 0 24px 60px rgba(17, 24, 39, 0.18);
+}
+
+.sidebar {
+  display: none !important;
+}
+
+.main {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 100svh;
+  overflow-x: hidden;
+  background: #fff;
+}
+
+.app-titlebar {
+  height: 52px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.app-titlebar strong {
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.topbar {
+  width: 100%;
+  min-height: 78px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 10px 12px;
+}
+
+#weekTitle {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+#dateRangeText {
+  font-size: 13px;
+}
+
+.topbar-actions {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.other-week-toggle {
+  width: 40px;
+  min-width: 40px;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+}
+
+.other-week-toggle span {
+  display: none;
+}
+
+.week-pill {
+  min-width: 52px;
+  height: 36px;
+  padding: 0 10px;
+  font-size: 15px;
+}
+
+#openImportBtn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+.week-nav,
+#prevWeekBtn,
+#nextWeekBtn,
+#openSettingsBtn {
+  display: none !important;
+}
+
+.week-strip,
+.timetable {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  grid-template-columns: var(--time-width) repeat(var(--day-count), minmax(0, 1fr));
+}
+
+.week-strip {
+  height: 96px;
+}
+
+.timetable-wrap {
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.month-cell {
+  font-size: 22px;
+}
+
+.day-cell strong {
+  font-size: 20px;
+}
+
+.day-cell span {
+  min-width: 48px;
+  height: 48px;
+  font-size: 27px;
+}
+
+.time-cell strong {
+  font-size: 29px;
+}
+
+.time-cell span {
+  font-size: 17px;
+}
+
+.course-card {
+  padding: 15px 5px 9px;
+  border-radius: 14px;
+}
+
+.course-card strong,
+.course-card span {
+  font-size: 13px;
+  line-height: 1.16;
+}
+
+.bottom-sheet,
+.dialog {
+  width: min(100%, var(--phone-width));
+}
+
+@media (max-width: 560px) {
+  body {
+    display: block;
+    background: #fff;
+  }
+
+  .app-shell {
+    width: 100% !important;
+    max-width: none !important;
+    box-shadow: none;
+  }
+}

@@ -1,4 +1,4 @@
-# 清课表网页
+# FakeUp网页
 
 这是一个只保留课表本体的纯网页课表。WakeUp 课程表和 APK 解包内容只用于观察课表模块的交互与视觉风格；项目没有复制 APK 源码、图标、图片，也不包含广告、搜题、登录、会员等能力。
 
@@ -42,14 +42,14 @@ http://localhost:5174
 - `app.js`
 - `docs/`
 
-如果使用 Nginx，可以给新子域名配置一个静态站点，例如 `schedule.c0d4.ink`：
+如果使用 Nginx，可以给新子域名配置一个静态站点，例如 `kb.c0d4.ink`：
 
 ```nginx
 server {
     listen 80;
-    server_name schedule.c0d4.ink;
+    server_name kb.c0d4.ink;
 
-    root /var/www/schedule;
+    root /var/www/kb.c0d4.ink;
     index index.html;
 
     location / {
@@ -61,7 +61,7 @@ server {
 DNS 侧给新子域名添加一条记录，指向云服务器：
 
 ```text
-schedule.c0d4.ink  A  你的服务器 IPv4
+kb.c0d4.ink  A  你的服务器 IPv4
 ```
 
 如果服务器已有 HTTPS 证书管理工具，可以按现有博客站点的方式给新子域名签发证书。
@@ -72,3 +72,4 @@ schedule.c0d4.ink  A  你的服务器 IPv4
 - `styles.css`：布局、课表网格、课程卡片、弹窗和响应式样式。
 - `app.js`：状态管理、导入解析、课程渲染和本地保存。
 - `base/`：APK 解包内容，仅作为功能分析参考，不需要发布到网站。
+
