@@ -1449,3 +1449,9 @@ body {
 .course-card {
   padding-inline: 4px !important;
 }
+
+.pdf-import-action {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+}
