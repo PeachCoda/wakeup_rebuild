@@ -36,13 +36,16 @@ http://localhost:5174
 
 ## 部署
 
-项目已经按 GitHub Pages 准备好：
+这个项目是纯静态网页，可以部署到 Cloudflare Pages、Vercel、Netlify 或自己的服务器。GitHub 只负责保存和维护源码，不绑定 GitHub Pages。
 
-- `.github/workflows/pages.yml`：推送到 `main` 后自动发布静态站。
-- `CNAME`：当前预设为 `schedule.c0d4.ink`。
-- `.nojekyll`：避免 GitHub Pages 按 Jekyll 处理静态文件。
+如果用 Cloudflare Pages 或 Vercel：
 
-GitHub 仓库里需要在 Settings → Pages 选择 GitHub Actions。域名 DNS 侧给 `schedule.c0d4.ink` 配一条指向 GitHub Pages 的记录即可。
+- 连接仓库 `PeachCoda/wakeup_rebuild`。
+- 构建命令留空。
+- 输出目录选择项目根目录 `/`。
+- 绑定你要使用的子域名，例如 `schedule.c0d4.ink`。
+
+如果用自己的服务器，把 `index.html`、`styles.css`、`app.js` 和 `docs/` 上传到站点目录即可。
 
 ## 代码结构
 
