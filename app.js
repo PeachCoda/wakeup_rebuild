@@ -52,6 +52,8 @@
     exportBtn: document.querySelector("#exportBtn"),
     importBtn: document.querySelector("#importBtn"),
     copyHduCollectorBtn: document.querySelector("#copyHduCollectorBtn"),
+    importPdfBtn: document.querySelector("#importPdfBtn"),
+    pdfFileInput: document.querySelector("#pdfFileInput"),
     importHduBtn: document.querySelector("#importHduBtn"),
     sheetBackdrop: document.querySelector("#sheetBackdrop"),
     courseSheet: document.querySelector("#courseSheet"),
@@ -846,6 +848,10 @@
       showToast("没有识别到课程，请粘贴采集脚本生成的 FakeUp 课表 JSON");
       return;
     }
+    applyImportedCourses(parsed);
+  }
+
+  function applyImportedCourses(parsed) {
     const schedule = currentSchedule();
     const merged = mergeImportedCourseSessions(parsed);
     schedule.courses = merged.map((course, index) => normalizeCourse({
@@ -862,6 +868,146 @@
     elements.importDialog.close();
     render();
     showToast(`已导入 ${schedule.courses.length} 门课程`);
+  }
+
+  async function importPdfFile(file) {
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
+      showToast("请选择教务系统导出的 PDF 文件");
+      return;
+    }
+    try {
+      showToast("正在解析 PDF…");
+      const courses = await parseHduPdf(file);
+      if (!courses.length) {
+        showToast("PDF 里没有识别到课程，请确认是个人课表导出的 PDF");
+        return;
+      }
+      applyImportedCourses(courses);
+    } catch (error) {
+      console.error(error);
+      showToast("PDF 解析失败，请重新导出 PDF 后再试");
+    } finally {
+      if (elements.pdfFileInput) elements.pdfFileInput.value = "";
+    }
+  }
+
+  async function loadPdfJs() {
+    if (window.pdfjsLib?.getDocument) return window.pdfjsLib;
+    const module = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs");
+    module.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+    return module;
+  }
+
+  async function parseHduPdf(file) {
+    const pdfjsLib = await loadPdfJs();
+    const data = new Uint8Array(await file.arrayBuffer());
+    const pdf = await pdfjsLib.getDocument({ data }).promise;
+    const courses = [];
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      courses.push(...await parseHduPdfPage(page));
+    }
+    return dedupeImportedCourses(courses);
+  }
+
+  async function parseHduPdfPage(page) {
+    const content = await page.getTextContent();
+    const items = content.items
+      .map((item) => ({
+        text: cleanupImportLine(item.str || ""),
+        x: item.transform?.[4] || 0,
+        y: item.transform?.[5] || 0,
+        width: item.width || 0,
+        height: Math.abs(item.height || item.transform?.[3] || 0)
+      }))
+      .filter((item) => item.text);
+    const dayColumns = detectPdfDayColumns(items);
+    const rowCenters = detectPdfSectionRows(items, dayColumns);
+    if (!dayColumns.length || rowCenters.length < 6) {
+      return parseHduText(items.map((item) => item.text).join("\n"));
+    }
+    const rowBounds = rowCenters.map((row, index) => {
+      const previous = rowCenters[index - 1];
+      const next = rowCenters[index + 1];
+      const top = previous ? (previous.y + row.y) / 2 : row.y + Math.abs(row.y - (next?.y ?? row.y - 42)) / 2;
+      const bottom = next ? (row.y + next.y) / 2 : row.y - Math.abs((previous?.y ?? row.y + 42) - row.y) / 2;
+      return { ...row, top, bottom };
+    });
+    const courses = [];
+    dayColumns.filter((day) => day.day <= 5).forEach((day) => {
+      rowBounds.forEach((row) => {
+        const cellItems = items.filter((item) => item.x >= day.left && item.x < day.right && item.y <= row.top && item.y > row.bottom);
+        const text = pdfItemsToText(cellItems);
+        if (!text) return;
+        parseHduCellCourses(text, day.day, row.node, row.node).forEach((course) => courses.push(course));
+      });
+    });
+    return courses;
+  }
+
+  function detectPdfDayColumns(items) {
+    const hits = [];
+    items.forEach((item) => {
+      const day = dayFromText(item.text);
+      if (day >= 1 && day <= 7 && /星期|周/.test(item.text)) {
+        hits.push({ day, x: item.x + item.width / 2, y: item.y });
+      }
+    });
+    const byDay = new Map();
+    hits.sort((a, b) => b.y - a.y).forEach((item) => {
+      if (!byDay.has(item.day)) byDay.set(item.day, item);
+    });
+    const centers = Array.from(byDay.values()).sort((a, b) => a.x - b.x);
+    if (centers.length < 5) return [];
+    return centers.map((item, index) => {
+      const previous = centers[index - 1];
+      const next = centers[index + 1];
+      const gap = next ? next.x - item.x : item.x - previous.x;
+      return {
+        day: item.day,
+        x: item.x,
+        left: previous ? (previous.x + item.x) / 2 : item.x - gap / 2,
+        right: next ? (item.x + next.x) / 2 : item.x + gap / 2
+      };
+    });
+  }
+
+  function detectPdfSectionRows(items, dayColumns) {
+    const firstDayLeft = Math.min(...dayColumns.map((item) => item.left));
+    const candidates = items
+      .filter((item) => /^(?:1[0-3]|[1-9])$/.test(item.text) && item.x < firstDayLeft - 4)
+      .map((item) => ({ node: Number(item.text), y: item.y }))
+      .sort((a, b) => b.y - a.y);
+    const rows = [];
+    const seen = new Set();
+    candidates.forEach((item) => {
+      if (seen.has(item.node)) return;
+      seen.add(item.node);
+      rows.push(item);
+    });
+    return rows.sort((a, b) => a.node - b.node).length >= 6
+      ? rows.sort((a, b) => a.node - b.node).map((row) => ({ ...row })).sort((a, b) => a.node - b.node).sort((a, b) => b.y - a.y)
+      : [];
+  }
+
+  function pdfItemsToText(items) {
+    if (!items.length) return "";
+    const sorted = [...items].sort((a, b) => Math.abs(b.y - a.y) > 2 ? b.y - a.y : a.x - b.x);
+    const lines = [];
+    sorted.forEach((item) => {
+      const line = lines.find((entry) => Math.abs(entry.y - item.y) <= 3);
+      if (line) {
+        line.items.push(item);
+        line.y = (line.y + item.y) / 2;
+      } else {
+        lines.push({ y: item.y, items: [item] });
+      }
+    });
+    return lines
+      .sort((a, b) => b.y - a.y)
+      .map((line) => line.items.sort((a, b) => a.x - b.x).map((item) => item.text).join(" "))
+      .join("\n");
   }
 
   function mergeImportedCourseSessions(courses) {
@@ -2078,6 +2224,8 @@
   elements.deleteScheduleBtn.addEventListener("click", deleteCurrentSchedule);
   elements.exportBtn.addEventListener("click", exportData);
   elements.importBtn.addEventListener("click", importData);
+  elements.importPdfBtn?.addEventListener("click", () => elements.pdfFileInput?.click());
+  elements.pdfFileInput?.addEventListener("change", () => importPdfFile(elements.pdfFileInput.files?.[0]));
   elements.copyHduCollectorBtn?.addEventListener("click", copyHduCollectorScript);
   elements.importHduBtn?.addEventListener("click", importHduData);
   elements.sheetBackdrop.addEventListener("click", hideCourseDetail);
@@ -2087,4 +2235,6 @@
 
   render();
 })();
+
+
 

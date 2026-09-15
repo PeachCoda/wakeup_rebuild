@@ -42,7 +42,8 @@
           <strong>FakeUp</strong>
         </header>
 
-        <header class="topbar">
+        <header class="topbar">
+
           <div class="term-summary">
             <button class="week-select-wrap" id="weekPickerBtn" type="button" aria-haspopup="dialog" aria-label="选择周数">
               <span id="weekTitle">第 1 周</span>
@@ -56,8 +57,10 @@
               <input id="headerShowOtherWeek" type="checkbox" />
               <span>非本周</span>
             </label>
-            <button class="week-pill" id="currentWeekBtn" type="button">本周</button>
-            <button class="icon-button utility-action" id="openImportBtn" type="button" title="导入导出" aria-label="导入导出">⇅</button>
+            <button class="week-pill" id="currentWeekBtn" type="button">本周</button>
+
+            <button class="icon-button utility-action" id="openImportBtn" type="button" title="导入导出" aria-label="导入导出">⇅</button>
+
           </div>
         </header>
 
@@ -123,16 +126,18 @@
         </header>
 
         <div class="import-tools">
-          <p>推荐导入方式：先点“复制页面采集脚本”，到杭电教务系统个人课表页的 Console 粘贴运行；脚本会复制结构化课表 JSON，再粘回这里导入。也兼容本站导出的 JSON；旧的页面 HTML 只能作为兜底。导入过程完全在浏览器本地完成，不保存教务账号密码。</p>
+          <p>推荐导入方式：在杭电教务系统个人课表页点击“输出 PDF”，然后在这里选择 PDF 导入。PDF 会在浏览器本地解析，不上传文件，也不保存教务账号密码。JSON 导入保留为备份方式。</p>
           <div class="import-helper">
-            <button class="plain-button" id="copyHduCollectorBtn" type="button">复制页面采集脚本</button>
-            <span>在教务系统课表页打开开发者工具 Console，粘贴运行后，把自动复制出的 FakeUp 课表 JSON 粘到下方。</span>
+            <button class="primary-button" id="importPdfBtn" type="button">导入 PDF</button>
+            <input id="pdfFileInput" class="sr-only" type="file" accept="application/pdf,.pdf" />
+            <span>在教务系统点击“输出 PDF”保存课表文件，然后选择这个 PDF。</span>
           </div>
-          <textarea id="importText" rows="10" placeholder="粘贴 FakeUp 课表 JSON，或本站导出的 JSON；旧 HTML 仅兜底"></textarea>
+          <textarea id="importText" rows="10" placeholder="备份方式：粘贴 FakeUp 课表 JSON、本站导出的 JSON，或旧 HTML"></textarea>
           <div class="dialog-actions compact-actions">
             <button class="plain-button" id="exportBtn" type="button">导出 JSON</button>
             <button class="plain-button" id="importBtn" type="button">导入 JSON</button>
-            <button class="primary-button" id="importHduBtn" type="button">导入杭电课表</button>
+            <button class="plain-button" id="copyHduCollectorBtn" type="button">复制采集脚本</button>
+            <button class="primary-button" id="importHduBtn" type="button">导入文本</button>
           </div>
         </div>
       </form>
@@ -140,7 +145,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-hdu-json-3"></script>
+    <script src="./app.js?v=fakeup-pdf-1"></script>
   </body>
 </html>
 
