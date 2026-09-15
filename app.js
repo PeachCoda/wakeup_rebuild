@@ -912,7 +912,11 @@
     const headerBottom = Math.max(...dayColumns.map((day) => day.y || 0), ...items.filter((item) => /星期|周/.test(item.text)).map((item) => item.y)) - 8;
     dayColumns.filter((day) => day.day <= 5).forEach((day) => {
       const columnItems = items.filter((item) => item.x >= day.left && item.x < day.right && item.y < headerBottom);
+      const columnText = pdfItemsToText(columnItems);
       parsePdfColumnCourses(columnItems, day.day, rowBounds).forEach((course) => courses.push(course));
+      if (columnText) {
+        parseHduCellCourses(columnText, day.day, 1, 13).forEach((course) => courses.push(course));
+      }
       rowBounds.forEach((row) => {
         const cellItems = items.filter((item) => item.x >= day.left && item.x < day.right && item.y <= row.top && item.y > row.bottom);
         const text = pdfItemsToText(cellItems);
@@ -1402,17 +1406,17 @@
     const match = source.match(/^(.+?)[（(]\s*(?:第\s*)?(?:1[0-3]|[1-9])\s*(?:-|~|到|至)\s*(?:1[0-3]|[1-9])\s*节/);
     if (!match) return "";
     const name = cleanupField(match[1]);
-    return isValidCourseNameLine(name) ? name : "";
+    return isCourseNameCandidateLine(name, { allowShortName: true }) ? name : "";
   }
 
   function findCourseNameAround(lines, sectionIndex, nextSectionIndex) {
     for (let index = sectionIndex - 1; index >= 0 && index >= sectionIndex - 8; index -= 1) {
       const candidate = cleanupField(lines[index]);
-      if (isValidCourseNameLine(candidate)) return candidate;
+      if (isCourseNameCandidateLine(candidate, { allowShortName: true })) return candidate;
     }
     for (let index = sectionIndex + 1; index < nextSectionIndex && index <= sectionIndex + 5; index += 1) {
       const candidate = cleanupField(lines[index]);
-      if (isValidCourseNameLine(candidate)) return candidate;
+      if (isCourseNameCandidateLine(candidate, { allowShortName: true })) return candidate;
     }
     return "";
   }
