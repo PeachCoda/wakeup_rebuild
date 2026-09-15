@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>清课表</title>
+    <link rel="stylesheet" href="./styles.css?v=restore-1" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="课表侧栏">
+        <div class="brand">
+          <div class="brand-mark">清</div>
+          <div>
+            <h1>清课表</h1>
+            <p>只保留课表本体</p>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-title">
+            <span>当前课表</span>
+            <button class="icon-button" id="newScheduleBtn" type="button" title="新建课表" aria-label="新建课表">+</button>
+          </div>
+          <div id="scheduleList" class="schedule-list"></div>
+        </section>
+
+        <section class="panel today-panel">
+          <div class="panel-title">
+            <span>今日课程</span>
+            <span id="todayBadge" class="soft-badge"></span>
+          </div>
+          <div id="todayCourses" class="today-list"></div>
+        </section>
+      </aside>
+
+      <main class="main">
+        <header class="app-titlebar">
+          <button class="nav-button" type="button" aria-label="返回">‹</button>
+          <strong>编辑: 电助手</strong>
+          <button class="nav-button" type="button" aria-label="更多">•••</button>
+        </header>
+
+        <header class="topbar">
+          <div class="term-summary">
+            <button class="week-select-wrap" id="weekPickerBtn" type="button" aria-haspopup="dialog" aria-label="选择周数">
+              <span id="weekTitle">第 1 周</span>
+              <span class="week-chevron" aria-hidden="true">›</span>
+            </button>
+            <select id="weekSelect" class="sr-only" aria-label="选择周数"></select>
+            <div class="eyebrow" id="dateRangeText"></div>
+          </div>
+          <div class="topbar-actions">
+            <label class="other-week-toggle" title="显示非本周课程">
+              <input id="headerShowOtherWeek" type="checkbox" />
+              <span>非本周</span>
+            </label>
+            <button class="week-pill" id="currentWeekBtn" type="button">本周</button>
+            <button class="icon-button utility-action" id="openImportBtn" type="button" title="导入导出" aria-label="导入导出">⇅</button>
+          </div>
+        </header>
+
+        <div class="week-strip" id="weekStrip"></div>
+
+        <section class="timetable-wrap" aria-label="周课表">
+          <div class="timetable" id="timetable"></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+
+    <section class="bottom-sheet" id="courseSheet" aria-label="课程详情" hidden>
+      <div class="sheet-handle"></div>
+      <div id="courseDetail"></div>
+    </section>
+
+    <dialog id="settingsDialog" class="dialog">
+      <form method="dialog" id="settingsForm" class="dialog-card">
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow">设置</p>
+            <h3>课表配置</h3>
+          </div>
+          <button class="icon-button" value="cancel" type="submit" aria-label="关闭">×</button>
+        </header>
+
+        <div class="form-grid compact-form">
+          <label class="field field-wide">
+            <span>课表名称</span>
+            <input id="settingName" required maxlength="24" />
+          </label>
+
+          <label class="field">
+            <span>开学日期</span>
+            <input id="settingStartDate" type="date" required />
+          </label>
+
+          <label class="field">
+            <span>格子高度</span>
+            <input id="settingCellHeight" type="number" min="72" max="132" required />
+          </label>
+        </div>
+
+        <footer class="dialog-actions">
+          <button class="plain-button danger" id="deleteScheduleBtn" type="button">删除课表</button>
+          <div class="action-spacer"></div>
+          <button class="plain-button" value="cancel" type="submit">取消</button>
+          <button class="primary-button" id="saveSettingsBtn" type="button">保存设置</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="importDialog" class="dialog">
+      <form method="dialog" class="dialog-card">
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow">数据</p>
+            <h3>导入导出</h3>
+          </div>
+          <button class="icon-button" value="cancel" type="submit" aria-label="关闭">×</button>
+        </header>
+
+        <div class="import-tools">
+          <p>支持两种导入：粘贴本站导出的 JSON，或在杭电教务系统打开个人课表后复制页面内容/HTML 粘贴到这里。导入过程完全在浏览器本地完成，不保存教务账号密码。只粘贴课表网址无法导入，因为网址本身不包含课程数据。</p>
+          <div class="import-helper">
+            <button class="plain-button" id="copyHduCollectorBtn" type="button">复制页面采集脚本</button>
+            <span>在教务系统课表页打开开发者工具 Console，粘贴运行后，再把复制出的内容粘到下方。</span>
+          </div>
+          <textarea id="importText" rows="10" placeholder="粘贴 JSON，或杭电教务系统课表页面复制出来的 HTML/文本"></textarea>
+          <div class="dialog-actions compact-actions">
+            <button class="plain-button" id="exportBtn" type="button">导出 JSON</button>
+            <button class="plain-button" id="importBtn" type="button">导入 JSON</button>
+            <button class="primary-button" id="importHduBtn" type="button">导入杭电课表</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="./app.js?v=restore-1"></script>
+  </body>
+</html>
