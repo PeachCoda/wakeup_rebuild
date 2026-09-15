@@ -10,7 +10,6 @@
 - 点击课程只查看详情：周数、时间、地点、老师、学分。
 - 支持杭电教务系统课表导入、本站 JSON 导入导出。
 - 数据保存在浏览器 `localStorage`，不上传教务账号密码。
-- GitHub Pages 静态部署配置已准备好。
 
 ## 已剔除
 
@@ -34,22 +33,35 @@ node -e "const http=require('http'),fs=require('fs'),path=require('path');const 
 http://localhost:5174
 ```
 
-## 部署
+## 部署到 Vercel
 
-这个项目是纯静态网页，可以部署到 Cloudflare Pages、Vercel、Netlify 或自己的服务器。GitHub 只负责保存和维护源码，不绑定 GitHub Pages。
+这个仓库按纯静态站准备，部署方式可以和 `PeachCoda/fuwari-blog` 一样使用 Vercel。
 
-如果用 Cloudflare Pages 或 Vercel：
+在 Vercel 新建项目时选择 GitHub 仓库：
 
-- 连接仓库 `PeachCoda/wakeup_rebuild`。
-- 构建命令留空。
-- 输出目录选择项目根目录 `/`。
-- 绑定你要使用的子域名，例如 `schedule.c0d4.ink`。
+```text
+PeachCoda/wakeup_rebuild
+```
 
-如果用自己的服务器，把 `index.html`、`styles.css`、`app.js` 和 `docs/` 上传到站点目录即可。
+项目设置：
+
+- Framework Preset：Other
+- Build Command：留空
+- Output Directory：`.` 或留空
+- Install Command：留空
+
+部署成功后，在 Vercel 项目的 Domains 里添加新的子域名，例如：
+
+```text
+schedule.c0d4.ink
+```
+
+如果 `c0d4.ink` 的 DNS 也在 Vercel 管理，添加后会自动配置。否则按 Vercel 给出的提示，在 DNS 服务商处添加 CNAME 记录，通常是把 `schedule` 指向 Vercel 提供的目标。
 
 ## 代码结构
 
 - `index.html`：页面骨架和弹窗结构。
 - `styles.css`：布局、课表网格、课程卡片、弹窗和响应式样式。
 - `app.js`：状态管理、导入解析、课程渲染和本地保存。
+- `vercel.json`：Vercel 静态站配置。
 - `base/`：APK 解包内容，仅作为功能分析参考，不需要发布到网站。
