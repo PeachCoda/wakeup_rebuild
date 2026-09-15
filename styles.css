@@ -1408,3 +1408,44 @@ body {
   overflow-y: visible !important;
   overscroll-behavior: auto !important;
 }
+/* Compact timetable scale. */
+:root {
+  --time-width: 56px;
+  --cell-height: 84px;
+}
+
+.week-strip {
+  height: 82px !important;
+}
+
+.month-cell {
+  font-size: 18px !important;
+}
+
+.day-cell {
+  gap: 3px !important;
+}
+
+.day-cell strong {
+  font-size: 18px !important;
+}
+
+.day-cell span {
+  min-width: 40px !important;
+  height: 40px !important;
+  border-radius: 14px !important;
+  font-size: 22px !important;
+}
+
+.time-cell strong {
+  font-size: 22px !important;
+}
+
+.time-cell span {
+  font-size: 14px !important;
+  line-height: 1.05 !important;
+}
+
+.course-card {
+  padding-inline: 4px !important;
+}
