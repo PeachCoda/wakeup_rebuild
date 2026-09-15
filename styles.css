@@ -1338,3 +1338,51 @@ textarea {
     box-shadow: none;
   }
 }
+/* FakeUp top bar and number weight tuning. */
+.app-titlebar {
+  justify-content: center !important;
+  padding: 0 14px !important;
+}
+
+.app-titlebar strong {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+}
+
+.week-select-wrap {
+  gap: 12px !important;
+}
+
+#weekTitle {
+  font-size: 27px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.week-chevron {
+  margin-left: 2px !important;
+  margin-top: 2px !important;
+  font-size: 20px !important;
+}
+
+.day-cell span {
+  min-width: 46px !important;
+  height: 46px !important;
+  font-size: 24px !important;
+  font-weight: 400 !important;
+}
+
+.time-cell strong {
+  font-size: 25px !important;
+  font-weight: 400 !important;
+}
+
+.time-cell span {
+  font-size: 16px !important;
+  font-weight: 400 !important;
+}
+
+.month-cell {
+  font-size: 21px !important;
+  font-weight: 400 !important;
+}
