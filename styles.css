@@ -1386,3 +1386,25 @@ textarea {
   font-size: 21px !important;
   font-weight: 400 !important;
 }
+/* Use the document as the vertical scroller so mouse wheel and PageUp/PageDown work everywhere. */
+html,
+body {
+  min-height: 100%;
+  height: auto !important;
+  overflow-y: auto !important;
+}
+
+.app-shell,
+.main {
+  min-height: 100vh !important;
+  height: auto !important;
+}
+
+.timetable-wrap {
+  flex: none !important;
+  min-height: auto !important;
+  height: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  overscroll-behavior: auto !important;
+}
