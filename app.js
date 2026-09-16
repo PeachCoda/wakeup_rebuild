@@ -892,7 +892,8 @@
       data,
       cMapUrl: "./assets/pdfjs/cmaps/",
       cMapPacked: true,
-      standardFontDataUrl: "./assets/pdfjs/standard_fonts/"
+      standardFontDataUrl: "./assets/pdfjs/standard_fonts/",
+      useWorkerFetch: false
     }).promise;
     const courses = [];
     const cellRecords = [];
@@ -960,9 +961,18 @@
     }
     const cellRecords = extractHduPdfCellRecords(items, dayColumns, pageNumber);
     const structured = dedupeImportedCourses(cellRecords.map(parseHduPdfCellRecord).filter(Boolean));
+    const fallbackCourses = structured.length ? structured : parseHduText(items.map((item) => item.text).join("\n"));
     return {
-      courses: structured.length ? structured : parseHduText(items.map((item) => item.text).join("\n")),
-      cellRecords
+      courses: fallbackCourses,
+      cellRecords: cellRecords.length || fallbackCourses.length ? cellRecords : [{
+        source: "pdf-raw",
+        page: pageNumber,
+        itemCount: rawItems.length,
+        dayColumnCount: dayColumns.length,
+        listCourseCount: listCourses.length,
+        text: rawText.slice(0, 6000),
+        parsed: null
+      }]
     };
   }
 
