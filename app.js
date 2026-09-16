@@ -911,13 +911,8 @@
     if (!dayColumns.length) {
       return parseHduText(items.map((item) => item.text).join("\n"));
     }
-    const courses = [];
-    const headerBottom = Math.max(...dayColumns.map((day) => day.y || 0), ...items.filter((item) => /星期|周/.test(item.text)).map((item) => item.y)) - 8;
-    dayColumns.filter((day) => day.day <= 5).forEach((day) => {
-      const columnItems = items.filter((item) => item.x >= day.left && item.x < day.right && item.y < headerBottom);
-      parsePdfColumnCourses(columnItems, day.day).forEach((course) => courses.push(course));
-    });
-    const structured = dedupeImportedCourses(courses);
+    const cellRecords = extractHduPdfCellRecords(items, dayColumns);
+    const structured = dedupeImportedCourses(cellRecords.map(parseHduPdfCellRecord).filter(Boolean));
     return structured.length ? structured : parseHduText(items.map((item) => item.text).join("\n"));
   }
 
@@ -1035,48 +1030,84 @@
       .filter((line) => line.text && !isHeaderLike(line.text) && !isLegendText(line.text));
   }
 
-  function parsePdfColumnCourses(items, day) {
+  function extractHduPdfCellRecords(items, dayColumns) {
+    const headerYs = items.filter((item) => /星期|周/.test(item.text)).map((item) => item.y);
+    const headerBottom = Math.max(...dayColumns.map((day) => day.y || 0), ...headerYs) - 8;
+    return dayColumns
+      .filter((day) => day.day <= 5)
+      .flatMap((day) => {
+        const columnItems = items.filter((item) => item.x >= day.left && item.x < day.right && item.y < headerBottom);
+        return extractPdfColumnCellRecords(columnItems, day.day);
+      });
+  }
+
+  function extractPdfColumnCellRecords(items, day) {
     const lines = pdfItemsToLines(items);
     const sectionEntries = lines
       .map((line, index) => ({ line, index, section: sectionFromText(line.text) }))
       .filter((entry) => entry.section);
     return sectionEntries.map((entry, order) => {
-      const name = pdfCourseNameBeforeSection(lines, entry.index);
+      const titleLines = pdfCourseTitleLinesBeforeSection(lines, entry.index);
+      const inlineName = inlineCourseName(entry.line.text);
+      const name = inlineName || cleanupField(titleLines.map((line) => line.text).join(""));
       if (!name) return null;
       const nextSectionIndex = sectionEntries[order + 1]?.index ?? lines.length;
-      const contextLines = lines.slice(entry.index, nextSectionIndex).map((line) => line.text);
-      const text = contextLines.join("\n");
-      const weeks = weeksFromText(text);
-      if (!weeks?.length) return null;
+      const detailLines = lines.slice(entry.index, nextSectionIndex);
+      const recordLines = [...(inlineName ? [] : titleLines), ...detailLines];
+      const text = recordLines.map((line) => line.text).join("\n");
       return {
-        name,
+        source: "hdu-pdf-cell",
         day,
         start: clamp(entry.section.start, 1, 13),
         end: clamp(entry.section.end, entry.section.start, 13),
-        weeks,
-        room: detectRoom(contextLines.slice(1), text),
-        teacher: detectTeacher(contextLines.slice(1), text),
-        credit: detectCredit(text),
-        note: ""
+        name,
+        text,
+        lines: recordLines.map((line) => line.text),
+        bounds: pdfRecordBounds(recordLines)
       };
     }).filter(Boolean);
   }
 
-  function pdfCourseNameBeforeSection(lines, sectionIndex) {
-    const inline = inlineCourseName(lines[sectionIndex]?.text || "");
-    if (inline) return inline;
-    const parts = [];
+  function parseHduPdfCellRecord(record) {
+    const text = cleanCourseText(record.text);
+    const weeks = weeksFromText(text);
+    if (!weeks?.length) return null;
+    const name = cleanupField(record.name || detectCourseName(record.lines || [], text));
+    if (!name || !isValidCourseNameLine(name)) return null;
+    return {
+      name,
+      day: record.day,
+      start: record.start,
+      end: record.end,
+      weeks,
+      room: detectRoom(record.lines || [], text),
+      teacher: detectTeacher(record.lines || [], text),
+      credit: detectCredit(text),
+      note: ""
+    };
+  }
+
+  function pdfCourseTitleLinesBeforeSection(lines, sectionIndex) {
+    const titleLines = [];
     let lastY = lines[sectionIndex]?.y || 0;
-    for (let index = sectionIndex - 1; index >= 0 && parts.length < 4; index -= 1) {
+    for (let index = sectionIndex - 1; index >= 0 && titleLines.length < 4; index -= 1) {
       const line = lines[index];
       const suffix = pdfCourseTitleSuffix(line.text);
       const titlePart = suffix || pdfCourseTitlePart(line.text);
       if (!titlePart) break;
       if (Math.abs(line.y - lastY) > 22) break;
-      parts.unshift(titlePart);
+      titleLines.unshift({ ...line, text: titlePart });
       lastY = line.y;
     }
-    return cleanupField(parts.join(""));
+    return titleLines;
+  }
+
+  function pdfRecordBounds(lines) {
+    if (!lines.length) return null;
+    const left = Math.min(...lines.map((line) => line.x || 0));
+    const top = Math.max(...lines.map((line) => line.y || 0));
+    const bottom = Math.min(...lines.map((line) => line.y || 0));
+    return { left, top, bottom };
   }
 
   function pdfCourseTitleSuffix(value) {
@@ -1908,6 +1939,7 @@
 
   render();
 })();
+
 
 
 
