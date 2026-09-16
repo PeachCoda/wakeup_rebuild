@@ -859,7 +859,7 @@
     try {
       showToast("正在解析 PDF…");
       const result = await parseHduPdfDocument(file);
-      if (pdfDebugEnabled) showPdfDebugJson(result.cellRecords);
+      if (pdfDebugEnabled) showPdfDebugJson(result.debugRecords);
       if (!result.courses.length) {
         showToast("PDF 里没有识别到课程，请确认是个人课表导出的 PDF");
         return;
@@ -904,7 +904,11 @@
     }
     return {
       courses: dedupeImportedCourses(courses),
-      cellRecords
+      cellRecords,
+      debugRecords: cellRecords.map((record) => ({
+        ...record,
+        parsed: parseHduPdfCellRecord(record)
+      }))
     };
   }
 
@@ -1072,8 +1076,12 @@
       const inlineName = inlineCourseName(entry.line.text);
       const name = inlineName || cleanupField(titleLines.map((line) => line.text).join(""));
       if (!name) return null;
-      const nextSectionIndex = sectionEntries[order + 1]?.index ?? lines.length;
-      const detailLines = lines.slice(entry.index, nextSectionIndex);
+      const nextEntry = sectionEntries[order + 1];
+      const nextTitleLines = nextEntry ? pdfCourseTitleLinesBeforeSection(lines, nextEntry.index) : [];
+      const nextTitleIndex = nextTitleLines.length ? nextTitleLines[0].index : null;
+      const nextSectionIndex = nextEntry?.index ?? lines.length;
+      const detailEndIndex = nextTitleIndex !== null && nextTitleIndex > entry.index ? nextTitleIndex : nextSectionIndex;
+      const detailLines = lines.slice(entry.index, detailEndIndex);
       const recordLines = [...(inlineName ? [] : titleLines), ...detailLines];
       const text = recordLines.map((line) => line.text).join("\n");
       return {
@@ -1118,7 +1126,7 @@
       const titlePart = suffix || pdfCourseTitlePart(line.text);
       if (!titlePart) break;
       if (Math.abs(line.y - lastY) > 22) break;
-      titleLines.unshift({ ...line, text: titlePart });
+      titleLines.unshift({ ...line, index, text: titlePart });
       lastY = line.y;
     }
     return titleLines;
