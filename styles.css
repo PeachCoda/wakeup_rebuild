@@ -1455,3 +1455,31 @@ body {
   font-weight: 700 !important;
   letter-spacing: 0.02em !important;
 }
+
+/* Remove the standalone title bar and make the date row slimmer. */
+.app-titlebar {
+  display: none !important;
+}
+
+.week-strip {
+  height: 68px !important;
+}
+
+.month-cell {
+  font-size: 16px !important;
+}
+
+.day-cell {
+  gap: 1px !important;
+}
+
+.day-cell strong {
+  font-size: 16px !important;
+}
+
+.day-cell span {
+  min-width: 34px !important;
+  height: 34px !important;
+  border-radius: 12px !important;
+  font-size: 20px !important;
+}

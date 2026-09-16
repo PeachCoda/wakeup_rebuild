@@ -1044,7 +1044,7 @@
       const name = pdfCourseNameBeforeSection(lines, entry.index);
       if (!name) return null;
       const nextSectionIndex = sectionEntries[order + 1]?.index ?? lines.length;
-      const contextLines = lines.slice(entry.index, Math.min(nextSectionIndex, entry.index + 9)).map((line) => line.text);
+      const contextLines = lines.slice(entry.index, nextSectionIndex).map((line) => line.text);
       const text = contextLines.join("\n");
       const weeks = weeksFromText(text);
       if (!weeks?.length) return null;
@@ -1584,6 +1584,9 @@
 
   function detectCredit(value) {
     const source = cleanCourseText(value);
+    const compact = source.replace(/\s+/g, "");
+    const compactLabeled = compact.match(/(?:学分|credit|xf)[:：]?(\d+(?:\.\d+)?)/i);
+    if (compactLabeled) return formatCredit(compactLabeled[1]);
     const labeled = source.match(/(?:学分|credit|xf)\s*[:：]?\s*(\d+(?:\.\d+)?)/i);
     if (labeled) return formatCredit(labeled[1]);
     const directSource = source.trim();
@@ -1592,6 +1595,9 @@
       if (direct > 0 && direct <= 10) return formatCredit(directSource);
     }
     const lines = source.split(/\n+/).map((line) => cleanupImportLine(line)).filter(Boolean);
+    const joinedLines = lines.join("");
+    const splitLabel = joinedLines.match(/学分[:：]?(\d+(?:\.\d+)?)/);
+    if (splitLabel) return formatCredit(splitLabel[1]);
     const decimalLine = [...lines].reverse().find((line) => /^\d+\.\d+$/.test(line) && Number(line) > 0 && Number(line) <= 10);
     if (decimalLine) return formatCredit(decimalLine);
     const labeledLoose = source.match(/(?:^|\n|\s)(\d+\.\d+)(?:\s*学分)?(?:\n|\s|$)/);
@@ -1902,6 +1908,8 @@
 
   render();
 })();
+
+
 
 
 
