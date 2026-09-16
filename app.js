@@ -915,7 +915,10 @@
   }
 
   async function parseHduPdfPage(page, layout, pageNumber = 1) {
-    const content = await page.getTextContent();
+    const content = await page.getTextContent({
+      disableCombineTextItems: true,
+      disableNormalization: false
+    });
     const rawItems = content.items
       .map((item) => ({
         text: cleanupImportLine(item.str || ""),
@@ -939,17 +942,6 @@
       };
     }
     const detailListCourses = parseHduPdfDetailListText(rawText);
-    if (detailListCourses.length >= 3) {
-      return {
-        courses: detailListCourses,
-        cellRecords: detailListCourses.map((course) => ({
-          source: "hdu-pdf-detail-list",
-          page: pageNumber,
-          text: course.rawText || "",
-          parsed: course
-        }))
-      };
-    }
     const listCourses = parseHduPdfListText(rawText);
     if (listCourses.length >= 3) {
       return {
@@ -994,6 +986,14 @@
         itemCount: rawItems.length,
         dayColumnCount: dayColumns.length,
         listCourseCount: listCourses.length,
+        detailListCourseCount: detailListCourses.length,
+        rawItems: rawItems.slice(0, 220).map((item) => ({
+          text: item.text,
+          x: Math.round(item.x * 10) / 10,
+          y: Math.round(item.y * 10) / 10,
+          width: Math.round(item.width * 10) / 10,
+          height: Math.round(item.height * 10) / 10
+        })),
         text: rawText.slice(0, 6000),
         parsed: null
       }]
