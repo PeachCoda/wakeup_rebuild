@@ -876,7 +876,12 @@
   async function parseHduPdf(file) {
     const pdfjsLib = await loadPdfJs();
     const data = new Uint8Array(await file.arrayBuffer());
-    const pdf = await pdfjsLib.getDocument({ data }).promise;
+    const pdf = await pdfjsLib.getDocument({
+      data,
+      cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/cmaps/",
+      cMapPacked: true,
+      standardFontDataUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/standard_fonts/"
+    }).promise;
     const courses = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
@@ -887,7 +892,7 @@
 
   async function parseHduPdfPage(page) {
     const content = await page.getTextContent();
-    const items = content.items
+    const items = normalizePdfCoordinates(content.items
       .map((item) => ({
         text: cleanupImportLine(item.str || ""),
         x: item.transform?.[4] || 0,
@@ -895,7 +900,7 @@
         width: item.width || 0,
         height: Math.abs(item.height || item.transform?.[3] || 0)
       }))
-      .filter((item) => item.text);
+      .filter((item) => item.text));
     const dayColumns = detectPdfDayColumns(items);
     const rowCenters = detectPdfSectionRows(items, dayColumns);
     if (!dayColumns.length || rowCenters.length < 6) {
@@ -925,6 +930,26 @@
       });
     });
     return dedupeImportedCourses(courses);
+  }
+
+  function normalizePdfCoordinates(items) {
+    const dayHits = items.filter((item) => {
+      const day = dayFromText(item.text);
+      return day >= 1 && day <= 7 && /星期|周/.test(item.text);
+    });
+    if (dayHits.length < 5) return items;
+    const xs = dayHits.map((item) => item.x);
+    const ys = dayHits.map((item) => item.y);
+    const xSpread = Math.max(...xs) - Math.min(...xs);
+    const ySpread = Math.max(...ys) - Math.min(...ys);
+    if (ySpread <= xSpread * 2) return items;
+    return items.map((item) => ({
+      ...item,
+      x: item.y,
+      y: -item.x,
+      width: 0,
+      height: item.width || item.height || 0
+    }));
   }
 
   function detectPdfDayColumns(items) {
@@ -957,7 +982,7 @@
   function detectPdfSectionRows(items, dayColumns) {
     const firstDayLeft = Math.min(...dayColumns.map((item) => item.left));
     const candidates = items
-      .filter((item) => /^(?:1[0-3]|[1-9])$/.test(item.text) && item.x < firstDayLeft - 4)
+      .filter((item) => /^(?:1[0-3]|[1-9])$/.test(item.text) && item.x < firstDayLeft + 8)
       .map((item) => ({ node: Number(item.text), y: item.y }))
       .sort((a, b) => b.y - a.y);
     const rows = [];
