@@ -926,6 +926,18 @@
       }))
       .filter((item) => item.text);
     const rawText = pdfItemsToText(rawItems);
+    const detailListCourses = parseHduPdfDetailListText(rawText);
+    if (detailListCourses.length >= 3) {
+      return {
+        courses: detailListCourses,
+        cellRecords: detailListCourses.map((course) => ({
+          source: "hdu-pdf-detail-list",
+          page: pageNumber,
+          text: course.rawText || "",
+          parsed: course
+        }))
+      };
+    }
     const listCourses = parseHduPdfListText(rawText);
     if (listCourses.length >= 3) {
       return {
@@ -1064,6 +1076,58 @@
       .join("\n");
   }
 
+
+
+  function parseHduPdfDetailListText(raw) {
+    const source = cleanCourseText(raw);
+    const detailMatches = [...source.matchAll(/周数\s*[:：][\s\S]*?学分\s*[:：]\s*\d+(?:\.\d+)?/g)];
+    if (detailMatches.length < 3) return [];
+    const details = detailMatches.map((match) => cleanupImportLine(match[0]));
+    const tail = cleanupImportLine(source.slice(detailMatches[detailMatches.length - 1].index + detailMatches[detailMatches.length - 1][0].length));
+    const tokens = tail
+      .replace(/20\d{2}-20\d{2}学年第\d学期/g, " ")
+      .replace(/星期[一二三四五六日]/g, " ")
+      .split(/\s+/)
+      .map((token) => cleanupImportLine(token))
+      .filter(Boolean);
+    const firstSectionIndex = tokens.findIndex((token) => listSectionToken(token));
+    if (firstSectionIndex <= 0) return [];
+    const names = tokens.slice(0, firstSectionIndex).filter((token) => isCourseNameCandidateLine(token, { allowShortName: true }));
+    const sections = tokens.slice(firstSectionIndex).map(listSectionToken).filter(Boolean);
+    const count = Math.min(details.length, names.length, sections.length);
+    if (count < 3) return [];
+    const courses = [];
+    let day = 1;
+    let previousStart = 0;
+    for (let index = 0; index < count; index += 1) {
+      const section = sections[index];
+      if (index > 0 && section.start < previousStart) day += 1;
+      previousStart = section.start;
+      if (day > 5) break;
+      const name = cleanupField(names[index]);
+      const text = `${name} ${details[index]}`;
+      const weeks = weeksFromText(details[index]);
+      if (!weeks?.length || !name || !isValidCourseNameLine(name)) continue;
+      courses.push({
+        name,
+        day,
+        start: clamp(section.start, 1, 13),
+        end: clamp(section.end, section.start, 13),
+        weeks,
+        teacher: detectTeacher([details[index]], details[index]),
+        room: detectRoom([details[index]], details[index]),
+        credit: detectCredit(details[index]),
+        note: "",
+        rawText: text
+      });
+    }
+    return courses;
+  }
+
+  function listSectionToken(token) {
+    const match = cleanupImportLine(token).match(/^(1[0-3]|[1-9])\s*(?:-|－|–|—|~|～|到|至)\s*(1[0-3]|[1-9])$/);
+    return match ? { start: Number(match[1]), end: Number(match[2]) } : null;
+  }
 
   function parseHduPdfListText(raw) {
     const lines = cleanCourseText(raw)
