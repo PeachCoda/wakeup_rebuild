@@ -1137,20 +1137,24 @@
       if (!active) return;
       const courseName = isCourseNameCandidateLine(item.text, { allowShortName: true }) ? cleanupField(item.text) : "";
       const nextText = cleanupImportLine(items[index + 1]?.text || "");
-      if (!active.name && courseName) {
-        active.name = courseName;
+      if (courseName && /周数\s*[:：]/.test(nextText)) {
+        if (active.name && active.lines.length) {
+          const previous = active;
+          records.push(previous);
+          active = {
+            day: previous.day,
+            start: previous.start,
+            end: previous.end,
+            name: courseName,
+            lines: []
+          };
+        } else {
+          active.name = courseName;
+        }
         return;
       }
-      if (active.name && courseName && /周数\s*[:：]/.test(nextText)) {
-        const previous = active;
-        records.push(previous);
-        active = {
-          day: previous.day,
-          start: previous.start,
-          end: previous.end,
-          name: courseName,
-          lines: []
-        };
+      if (!active.name && courseName) {
+        active.name = courseName;
         return;
       }
       if (active.name) active.lines.push(item.text);
