@@ -1069,13 +1069,19 @@
     let lastY = lines[sectionIndex]?.y || 0;
     for (let index = sectionIndex - 1; index >= 0 && parts.length < 4; index -= 1) {
       const line = lines[index];
-      const titlePart = pdfCourseTitlePart(line.text);
+      const suffix = pdfCourseTitleSuffix(line.text);
+      const titlePart = suffix || pdfCourseTitlePart(line.text);
       if (!titlePart) break;
       if (Math.abs(line.y - lastY) > 22) break;
       parts.unshift(titlePart);
       lastY = line.y;
     }
     return cleanupField(parts.join(""));
+  }
+
+  function pdfCourseTitleSuffix(value) {
+    const source = cleanupImportLine(value);
+    return /^[）)]$/.test(source) ? source : "";
   }
 
   function pdfCourseTitlePart(value) {
@@ -1086,7 +1092,7 @@
 
   function isPdfCourseDetailLine(value) {
     const source = cleanCourseText(value);
-    return /^(?:[:：/]|\d+(?:\.\d+)?$)/.test(source)
+    return /^(?:[:：/]|分[:：]|时[:：]|学时[:：]|总学时[:：]|周学时[:：]|\d+(?:\.\d+)?$)/.test(source)
       || /(?:校区|场地|地点|教师|老师|教学班|班组成|课程学时|理论学时|实践学时|实验学时|上机学时|周学时|总学时|学分|考核方式|选课备注|组成)/.test(source)
       || /(?:星期|周)[一二三四五六日]/.test(source)
       || sectionFromText(source)
