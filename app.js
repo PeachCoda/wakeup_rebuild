@@ -51,8 +51,14 @@
     sheetBackdrop: document.querySelector("#sheetBackdrop"),
     courseSheet: document.querySelector("#courseSheet"),
     courseDetail: document.querySelector("#courseDetail"),
+    pdfDebugPanel: document.querySelector("#pdfDebugPanel"),
+    pdfDebugText: document.querySelector("#pdfDebugText"),
+    closePdfDebugBtn: document.querySelector("#closePdfDebugBtn"),
     toast: document.querySelector("#toast")
   };
+
+  const pdfDebugEnabled = new URLSearchParams(window.location.search).get("debug") === "pdf"
+    || ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   let state = loadState();
 
@@ -852,12 +858,13 @@
     }
     try {
       showToast("正在解析 PDF…");
-      const courses = await parseHduPdf(file);
-      if (!courses.length) {
+      const result = await parseHduPdfDocument(file);
+      if (pdfDebugEnabled) showPdfDebugJson(result.cellRecords);
+      if (!result.courses.length) {
         showToast("PDF 里没有识别到课程，请确认是个人课表导出的 PDF");
         return;
       }
-      applyImportedCourses(courses);
+      applyImportedCourses(result.courses);
     } catch (error) {
       console.error(error);
       showToast("PDF 解析失败，请重新导出 PDF 后再试");
@@ -874,6 +881,10 @@
   }
 
   async function parseHduPdf(file) {
+    return (await parseHduPdfDocument(file)).courses;
+  }
+
+  async function parseHduPdfDocument(file) {
     const pdfjsLib = await loadPdfJs();
     const data = new Uint8Array(await file.arrayBuffer());
     const pdf = await pdfjsLib.getDocument({
@@ -883,15 +894,21 @@
       standardFontDataUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/standard_fonts/"
     }).promise;
     const courses = [];
+    const cellRecords = [];
     const layout = { transpose: null, dayColumns: null };
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
-      courses.push(...await parseHduPdfPage(page, layout));
+      const result = await parseHduPdfPage(page, layout, pageNumber);
+      courses.push(...result.courses);
+      cellRecords.push(...result.cellRecords);
     }
-    return dedupeImportedCourses(courses);
+    return {
+      courses: dedupeImportedCourses(courses),
+      cellRecords
+    };
   }
 
-  async function parseHduPdfPage(page, layout) {
+  async function parseHduPdfPage(page, layout, pageNumber = 1) {
     const content = await page.getTextContent();
     const items = normalizePdfCoordinates(content.items
       .map((item) => ({
@@ -909,11 +926,15 @@
       dayColumns = layout.dayColumns;
     }
     if (!dayColumns.length) {
-      return parseHduText(items.map((item) => item.text).join("\n"));
+      const fallbackCourses = parseHduText(items.map((item) => item.text).join("\n"));
+      return { courses: fallbackCourses, cellRecords: [] };
     }
-    const cellRecords = extractHduPdfCellRecords(items, dayColumns);
+    const cellRecords = extractHduPdfCellRecords(items, dayColumns, pageNumber);
     const structured = dedupeImportedCourses(cellRecords.map(parseHduPdfCellRecord).filter(Boolean));
-    return structured.length ? structured : parseHduText(items.map((item) => item.text).join("\n"));
+    return {
+      courses: structured.length ? structured : parseHduText(items.map((item) => item.text).join("\n")),
+      cellRecords
+    };
   }
 
   function normalizePdfCoordinates(items, layout = {}) {
@@ -1030,18 +1051,18 @@
       .filter((line) => line.text && !isHeaderLike(line.text) && !isLegendText(line.text));
   }
 
-  function extractHduPdfCellRecords(items, dayColumns) {
+  function extractHduPdfCellRecords(items, dayColumns, pageNumber = 1) {
     const headerYs = items.filter((item) => /星期|周/.test(item.text)).map((item) => item.y);
     const headerBottom = Math.max(...dayColumns.map((day) => day.y || 0), ...headerYs) - 8;
     return dayColumns
       .filter((day) => day.day <= 5)
       .flatMap((day) => {
         const columnItems = items.filter((item) => item.x >= day.left && item.x < day.right && item.y < headerBottom);
-        return extractPdfColumnCellRecords(columnItems, day.day);
+        return extractPdfColumnCellRecords(columnItems, day.day, pageNumber);
       });
   }
 
-  function extractPdfColumnCellRecords(items, day) {
+  function extractPdfColumnCellRecords(items, day, pageNumber = 1) {
     const lines = pdfItemsToLines(items);
     const sectionEntries = lines
       .map((line, index) => ({ line, index, section: sectionFromText(line.text) }))
@@ -1057,6 +1078,7 @@
       const text = recordLines.map((line) => line.text).join("\n");
       return {
         source: "hdu-pdf-cell",
+        page: pageNumber,
         day,
         start: clamp(entry.section.start, 1, 13),
         end: clamp(entry.section.end, entry.section.start, 13),
@@ -1886,6 +1908,16 @@
       .replaceAll("'", "&#039;");
   }
 
+  function showPdfDebugJson(records) {
+    if (!elements.pdfDebugPanel || !elements.pdfDebugText) return;
+    elements.pdfDebugText.textContent = JSON.stringify(records, null, 2);
+    elements.pdfDebugPanel.hidden = false;
+  }
+
+  function hidePdfDebugJson() {
+    if (elements.pdfDebugPanel) elements.pdfDebugPanel.hidden = true;
+  }
+
   function showToast(message) {
     elements.toast.textContent = message;
     elements.toast.classList.add("show");
@@ -1926,6 +1958,7 @@
     render();
   });
 
+  elements.closePdfDebugBtn?.addEventListener("click", hidePdfDebugJson);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.openImportBtn.addEventListener("click", () => elements.pdfFileInput?.click());
   elements.newScheduleBtn.addEventListener("click", createNewSchedule);
