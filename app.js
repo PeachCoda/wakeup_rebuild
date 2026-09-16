@@ -861,6 +861,7 @@
       const result = await parseHduPdfDocument(file);
       if (pdfDebugEnabled) showPdfDebugJson(result.debugRecords);
       if (!result.courses.length) {
+        showPdfDebugJson(result.debugRecords);
         showToast("PDF 里没有识别到课程，请确认是个人课表导出的 PDF");
         return;
       }
@@ -1125,9 +1126,9 @@
     const match = cleanupImportLine(line).match(/^(?:(?:星期|周)[一二三四五六日]\s*)?(1[0-3]|[1-9])\s*(?:-|－|–|—|~|～|到|至)\s*(1[0-3]|[1-9])\s+(.+)$/);
     if (!match) return null;
     const sectionTail = cleanupImportLine(match[3]);
-    const timeIndex = sectionTail.search(/(?:时间|上课时间|周次)\s*[:：]/);
-    const head = timeIndex >= 0 ? sectionTail.slice(0, timeIndex) : sectionTail;
-    const rest = timeIndex >= 0 ? sectionTail.slice(timeIndex) : "";
+    const detailIndex = firstDetailIndex(sectionTail);
+    const head = detailIndex >= 0 ? sectionTail.slice(0, detailIndex) : sectionTail;
+    const rest = detailIndex >= 0 ? sectionTail.slice(detailIndex) : "";
     const name = cleanupField(head);
     if (!name || !isCourseNameCandidateLine(name, { allowShortName: true })) return null;
     return {
@@ -1136,6 +1137,21 @@
       name,
       rest
     };
+  }
+
+  function firstDetailIndex(value) {
+    const source = cleanupImportLine(value);
+    const patterns = [
+      /(?:时间|上课时间|周次|校区|地点|场地|教师|老师|教学班|教学班组成|考核方式|选课备注|课程学时组成|课程学时|学分)\s*[:：]/,
+      /(?:^|\s)\d{1,2}\s*(?:-|－|–|—|~|～|到|至)\s*\d{1,2}\s*周/,
+      /(?:^|\s)\d{1,2}\s*周/,
+      /\/(?:校区|地点|场地|教师|老师|教学班|考核方式|选课备注|课程学时|学分)\s*[:：]/
+    ];
+    const hits = patterns.map((pattern) => {
+      const match = source.match(pattern);
+      return match ? match.index + (match[0].startsWith("/") ? 1 : 0) : -1;
+    }).filter((index) => index >= 0);
+    return hits.length ? Math.min(...hits) : -1;
   }
 
   function parseHduPdfListRecord(record, fallbackDay) {
