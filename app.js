@@ -929,6 +929,18 @@
       }))
       .filter((item) => item.text);
     const rawText = pdfItemsToText(rawItems);
+    const streamListCourses = parseHduPdfItemStreamList(rawItems);
+    if (streamListCourses.length >= 3) {
+      return {
+        courses: streamListCourses,
+        cellRecords: streamListCourses.map((course) => ({
+          source: "hdu-pdf-item-stream",
+          page: pageNumber,
+          text: course.rawText || "",
+          parsed: course
+        }))
+      };
+    }
     const coordinateListCourses = parseHduPdfCoordinateListItems(rawItems);
     if (coordinateListCourses.length >= 3) {
       return {
@@ -1090,6 +1102,67 @@
 
 
 
+
+
+  function parseHduPdfItemStreamList(rawItems) {
+    const items = rawItems
+      .map((item) => ({ ...item, text: cleanupImportLine(item.text || "") }))
+      .filter((item) => item.text && !isHeaderLike(item.text) && !/^打印时间/.test(item.text));
+    const records = [];
+    let currentDay = 1;
+    let active = null;
+    const finish = () => {
+      if (active) records.push(active);
+      active = null;
+    };
+    items.forEach((item) => {
+      const day = dayFromLeadingText(item.text) || (/星期|周/.test(item.text) ? dayFromText(item.text) : 0);
+      if (day >= 1 && day <= 5 && /^\s*(?:星期|周)[一二三四五]\s*$/.test(item.text)) {
+        finish();
+        currentDay = day;
+        return;
+      }
+      const section = listSectionToken(item.text);
+      if (section) {
+        finish();
+        active = {
+          day: currentDay,
+          start: section.start,
+          end: section.end,
+          name: "",
+          lines: []
+        };
+        return;
+      }
+      if (!active) return;
+      if (!active.name && isCourseNameCandidateLine(item.text, { allowShortName: true })) {
+        active.name = cleanupField(item.text);
+        return;
+      }
+      if (active.name) active.lines.push(item.text);
+    });
+    finish();
+    return records.map((record) => parseHduPdfStreamRecord(record)).filter(Boolean);
+  }
+
+  function parseHduPdfStreamRecord(record) {
+    const detailText = cleanupImportLine(record.lines.join(" "));
+    const weeks = weeksFromText(detailText);
+    const name = cleanupField(record.name);
+    if (!record.day || record.day > 5 || !record.start || !record.end || !weeks?.length || !name || !isValidCourseNameLine(name)) return null;
+    return {
+      name,
+      day: record.day,
+      start: clamp(record.start, 1, 13),
+      end: clamp(record.end, record.start, 13),
+      weeks,
+      teacher: detectTeacher(record.lines, detailText),
+      room: detectRoom(record.lines, detailText),
+      credit: detectCredit(detailText),
+      note: "",
+      rawText: `${name} ${record.start}-${record.end} ${detailText}`
+    };
+  }
 
   function parseHduPdfCoordinateListItems(rawItems) {
     const items = rawItems.map((item) => ({
