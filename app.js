@@ -1115,7 +1115,7 @@
       if (active) records.push(active);
       active = null;
     };
-    items.forEach((item) => {
+    items.forEach((item, index) => {
       const day = dayFromLeadingText(item.text) || (/星期|周/.test(item.text) ? dayFromText(item.text) : 0);
       if (day >= 1 && day <= 5 && /^\s*(?:星期|周)[一二三四五]\s*$/.test(item.text)) {
         finish();
@@ -1135,8 +1135,22 @@
         return;
       }
       if (!active) return;
-      if (!active.name && isCourseNameCandidateLine(item.text, { allowShortName: true })) {
-        active.name = cleanupField(item.text);
+      const courseName = isCourseNameCandidateLine(item.text, { allowShortName: true }) ? cleanupField(item.text) : "";
+      const nextText = cleanupImportLine(items[index + 1]?.text || "");
+      if (!active.name && courseName) {
+        active.name = courseName;
+        return;
+      }
+      if (active.name && courseName && /周数\s*[:：]/.test(nextText)) {
+        const previous = active;
+        records.push(previous);
+        active = {
+          day: previous.day,
+          start: previous.start,
+          end: previous.end,
+          name: courseName,
+          lines: []
+        };
         return;
       }
       if (active.name) active.lines.push(item.text);
