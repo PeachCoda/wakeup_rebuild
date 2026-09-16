@@ -907,14 +907,14 @@
       cellRecords,
       debugRecords: cellRecords.map((record) => ({
         ...record,
-        parsed: parseHduPdfCellRecord(record)
+        parsed: record.parsed || parseHduPdfCellRecord(record)
       }))
     };
   }
 
   async function parseHduPdfPage(page, layout, pageNumber = 1) {
     const content = await page.getTextContent();
-    const items = normalizePdfCoordinates(content.items
+    const rawItems = content.items
       .map((item) => ({
         text: cleanupImportLine(item.str || ""),
         x: item.transform?.[4] || 0,
@@ -922,7 +922,21 @@
         width: item.width || 0,
         height: Math.abs(item.height || item.transform?.[3] || 0)
       }))
-      .filter((item) => item.text), layout);
+      .filter((item) => item.text);
+    const listCourses = parseHduPdfListText(pdfItemsToText(rawItems));
+    if (listCourses.length >= 3) {
+      return {
+        courses: listCourses,
+        cellRecords: listCourses.map((course) => ({
+          source: "hdu-pdf-list",
+          page: pageNumber,
+          text: course.rawText || "",
+          parsed: course
+        }))
+      };
+    }
+    const items = normalizePdfCoordinates(rawItems, layout);
+
     let dayColumns = detectPdfDayColumns(items);
     if (dayColumns.length) {
       layout.dayColumns = dayColumns;
@@ -1029,6 +1043,117 @@
       .join("\n");
   }
 
+
+  function parseHduPdfListText(raw) {
+    const lines = cleanCourseText(raw)
+      .split(/\n+/)
+      .map((line) => cleanupImportLine(line))
+      .filter((line) => line && !isHeaderLike(line) && !isLegendText(line) && !/^打印时间/.test(line));
+    const rawRecords = [];
+    let currentDay = 0;
+    let active = null;
+    const finish = () => {
+      if (active) rawRecords.push(active);
+      active = null;
+    };
+    const backfillDay = (day) => {
+      for (let index = rawRecords.length - 1; index >= 0 && !rawRecords[index].day; index -= 1) {
+        rawRecords[index].day = day;
+      }
+      if (active && !active.day) active.day = day;
+    };
+    lines.forEach((line) => {
+      const leadingDay = dayFromLeadingText(line);
+      if (leadingDay) {
+        currentDay = leadingDay;
+        backfillDay(leadingDay);
+        line = cleanupImportLine(line.replace(/^(?:星期|周)[一二三四五六日]\s*/, ""));
+        if (!line) return;
+      }
+      if (!currentDay) {
+        const inlineDay = dayFromText(line);
+        if (inlineDay) {
+          currentDay = inlineDay;
+          backfillDay(inlineDay);
+        }
+      }
+      const starter = parseHduPdfListStarter(line);
+      if (starter) {
+        finish();
+        active = {
+          day: currentDay,
+          start: starter.start,
+          end: starter.end,
+          name: starter.name,
+          lines: [starter.rest ? `${starter.name} ${starter.rest}` : starter.name]
+        };
+        return;
+      }
+      const bareSection = line.match(/^(1[0-3]|[1-9])\s*(?:-|－|–|—|~|～|到|至)\s*(1[0-3]|[1-9])$/);
+      if (bareSection) {
+        finish();
+        active = {
+          day: currentDay,
+          start: Number(bareSection[1]),
+          end: Number(bareSection[2]),
+          name: "",
+          lines: []
+        };
+        return;
+      }
+      if (!active) return;
+      if (!active.name && isCourseNameCandidateLine(line, { allowShortName: true })) {
+        active.name = cleanupField(line);
+      }
+      active.lines.push(line);
+    });
+    finish();
+    return rawRecords.map((record) => parseHduPdfListRecord(record, record.day || currentDay)).filter(Boolean);
+  }
+
+  function parseHduPdfListStarter(line) {
+    const match = cleanupImportLine(line).match(/^(?:(?:星期|周)[一二三四五六日]\s*)?(1[0-3]|[1-9])\s*(?:-|－|–|—|~|～|到|至)\s*(1[0-3]|[1-9])\s+(.+)$/);
+    if (!match) return null;
+    const sectionTail = cleanupImportLine(match[3]);
+    const timeIndex = sectionTail.search(/(?:时间|上课时间|周次)\s*[:：]/);
+    const head = timeIndex >= 0 ? sectionTail.slice(0, timeIndex) : sectionTail;
+    const rest = timeIndex >= 0 ? sectionTail.slice(timeIndex) : "";
+    const name = cleanupField(head);
+    if (!name || !isCourseNameCandidateLine(name, { allowShortName: true })) return null;
+    return {
+      start: Number(match[1]),
+      end: Number(match[2]),
+      name,
+      rest
+    };
+  }
+
+  function parseHduPdfListRecord(record, fallbackDay) {
+    const text = cleanCourseText(record.lines.join("\n"));
+    const day = record.day || fallbackDay || dayFromText(text);
+    const weeks = weeksFromText(text);
+    const name = cleanupField(record.name || detectCourseName(record.lines, text));
+    if (!day || day > 5 || !record.start || !record.end || !weeks?.length || !name || !isValidCourseNameLine(name)) return null;
+    return {
+      name,
+      day,
+      start: clamp(record.start, 1, 13),
+      end: clamp(record.end, record.start, 13),
+      weeks,
+      teacher: detectTeacher(record.lines, text),
+      room: detectRoom(record.lines, text),
+      credit: detectCredit(text),
+      note: "",
+      rawText: text
+    };
+  }
+
+  function dayFromLeadingText(text) {
+    const source = cleanupImportLine(text);
+    const match = source.match(/^(?:星期|周)([一二三四五六日])/);
+    if (!match) return 0;
+    return "一二三四五六日".indexOf(match[1]) + 1;
+  }
 
   function pdfItemsToLines(items) {
     if (!items.length) return [];
