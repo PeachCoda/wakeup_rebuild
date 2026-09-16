@@ -1443,7 +1443,7 @@
 
   function inlineCourseName(line) {
     const source = cleanupImportLine(line);
-    const match = source.match(/^(.+?)[（(]\s*(?:第\s*)?(?:1[0-3]|[1-9])\s*(?:-|~|到|至)\s*(?:1[0-3]|[1-9])\s*节/);
+    const match = source.match(/^(.+?)[（(]\s*(?:第\s*)?(?:1[0-3]|[1-9])\s*(?:-|－|–|—|~|～|到|至)\s*(?:1[0-3]|[1-9])\s*节/);
     if (!match) return "";
     const name = cleanupField(match[1]);
     return isCourseNameCandidateLine(name, { allowShortName: true }) ? name : "";
@@ -1472,7 +1472,7 @@
     if (!/[\u4e00-\u9fff]/.test(compact)) return false;
     if (isLegendText(source) || isHeaderLike(source) || isCourseNoiseLine(source) || isRoomLikeLine(source)) return false;
     if (isTeacherLikeLine(source) && !options.allowShortName && !isShortCourseName(source)) return false;
-    if (sectionFromText(source) || /(?:\d{1,2}\s*(?:-|~|到|至)\s*\d{1,2}\s*周|单周|双周)/.test(source)) return false;
+    if (sectionFromText(source) || /(?:\d{1,2}\s*(?:-|－|–|—|~|～|到|至)\s*\d{1,2}\s*周|单周|双周)/.test(source)) return false;
     if (/^\(?20\d{2}-20\d{2}-\d\)?/.test(source)) return false;
     if (/^[A-Z]?\d{4,}(?:[-—]\d+)?$/i.test(source)) return false;
     return true;
@@ -1484,7 +1484,7 @@
 
   function hasCourseLikeSignal(value) {
     const source = cleanCourseText(value);
-    return /(?:\d{1,2}\s*(?:-|~|到|至)\s*\d{1,2}\s*周|单周|双周|\d{1,2}\s*节|教研楼|教学楼|教室|实验室|机房|田径场|体育馆|不在教室)/.test(source)
+    return /(?:\d{1,2}\s*(?:-|－|–|—|~|～|到|至)\s*\d{1,2}\s*周|单周|双周|\d{1,2}\s*节|教研楼|教学楼|教室|实验室|机房|田径场|体育馆|不在教室)/.test(source)
       && !isLegendText(source);
   }
 
@@ -1547,7 +1547,7 @@
 
   function sectionFromText(text) {
     const source = cleanCourseText(text);
-    const rangeMatch = source.match(/(?:第\s*)?(1[0-3]|[1-9])\s*(?:-|~|到|至)\s*(1[0-3]|[1-9])\s*节/);
+    const rangeMatch = source.match(/(?:第\s*)?(1[0-3]|[1-9])\s*(?:-|－|–|—|~|～|到|至)\s*(1[0-3]|[1-9])\s*节/);
     if (rangeMatch) return { start: Number(rangeMatch[1]), end: Number(rangeMatch[2]) };
     const singleMatch = source.match(/(?:第\s*)?(1[0-3]|[1-9])\s*节/);
     if (singleMatch) return { start: Number(singleMatch[1]), end: Number(singleMatch[1]) };
@@ -1558,18 +1558,26 @@
     const source = cleanCourseText(text);
     const maxWeek = termWeeks;
     let weeks = [];
-    const rangePattern = /(\d{1,2})\s*(?:-|~|到|至)\s*(\d{1,2})\s*周?/g;
+    let hasLocalParity = false;
+    const applyParity = (values, parity) => {
+      if (parity === "单") return values.filter((week) => week % 2 === 1);
+      if (parity === "双") return values.filter((week) => week % 2 === 0);
+      return values;
+    };
+    const rangePattern = /(\d{1,2})\s*(?:-|－|–|—|~|～|到|至)\s*(\d{1,2})\s*周\s*(?:[（(]\s*(单|双)\s*[）)])?/g;
     let match;
     while ((match = rangePattern.exec(source))) {
-      weeks.push(...range(Number(match[1]), Number(match[2])));
+      if (match[3]) hasLocalParity = true;
+      weeks.push(...applyParity(range(Number(match[1]), Number(match[2])), match[3]));
     }
-    if (!weeks.length) {
-      const listMatch = source.match(/((?:\d{1,2}\s*[,，、]\s*)+\d{1,2})\s*周/);
-      if (listMatch) weeks = listMatch[1].split(/[,，、]/).map(Number);
+    const listPattern = /((?:\d{1,2}\s*[,，、]\s*)+\d{1,2})\s*周\s*(?:[（(]\s*(单|双)\s*[）)])?/g;
+    while ((match = listPattern.exec(source))) {
+      if (match[2]) hasLocalParity = true;
+      weeks.push(...applyParity(match[1].split(/[,，、]/).map(Number), match[2]));
     }
     if (!weeks.length) return null;
-    if (/单周|\(单\)|（单）/.test(source)) weeks = weeks.filter((week) => week % 2 === 1);
-    if (/双周|\(双\)|（双）/.test(source)) weeks = weeks.filter((week) => week % 2 === 0);
+    if (!hasLocalParity && /单周|\(单\)|（单）/.test(source)) weeks = weeks.filter((week) => week % 2 === 1);
+    if (!hasLocalParity && /双周|\(双\)|（双）/.test(source)) weeks = weeks.filter((week) => week % 2 === 0);
     return uniqueNumbers(weeks).filter((week) => week >= 1 && week <= maxWeek);
   }
 
@@ -1894,6 +1902,8 @@
 
   render();
 })();
+
+
 
 
 
