@@ -1067,12 +1067,28 @@
     let lastY = lines[sectionIndex]?.y || 0;
     for (let index = sectionIndex - 1; index >= 0 && parts.length < 4; index -= 1) {
       const line = lines[index];
-      if (!isCourseNameCandidateLine(line.text, { allowShortName: true })) break;
+      const titlePart = pdfCourseTitlePart(line.text);
+      if (!titlePart) break;
       if (Math.abs(line.y - lastY) > 22) break;
-      parts.unshift(line.text);
+      parts.unshift(titlePart);
       lastY = line.y;
     }
     return cleanupField(parts.join(""));
+  }
+
+  function pdfCourseTitlePart(value) {
+    const source = cleanupImportLine(value).replace(/^(?:星期|周)[一二三四五六日]\s*/, "");
+    if (!source || isPdfCourseDetailLine(source)) return "";
+    return isCourseNameCandidateLine(source, { allowShortName: true }) ? source : "";
+  }
+
+  function isPdfCourseDetailLine(value) {
+    const source = cleanCourseText(value);
+    return /^(?:[:：/]|\d+(?:\.\d+)?$)/.test(source)
+      || /(?:校区|场地|地点|教师|老师|教学班|班组成|课程学时|理论学时|实践学时|实验学时|上机学时|周学时|总学时|学分|考核方式|选课备注|组成)/.test(source)
+      || /(?:星期|周)[一二三四五六日]/.test(source)
+      || sectionFromText(source)
+      || Boolean(weeksFromText(source));
   }
 
   function sectionFromPdfY(y, rowBounds) {
@@ -1591,7 +1607,7 @@
 
   function detectRoom(lines, text) {
     const joined = cleanCourseText(text).replace(/\s*\n\s*/g, "").replace(/地\s*点/g, "地点");
-    const labeled = joined.match(/(?:地点|教室|上课地点)[:：]?\s*([^/，；;]+)/);
+    const labeled = joined.match(/(?:场地|地点|地|教室|上课地点)[:：]?\s*([^/，；;]+)/);
     if (labeled) return cleanupField(labeled[1]);
     const candidate = lines.find((line) => /(楼|教室|实验室|机房|场|馆|校区|不在教室)/.test(line));
     return cleanupField(candidate || "");
