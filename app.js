@@ -917,19 +917,10 @@
     const headerBottom = Math.max(...dayColumns.map((day) => day.y || 0), ...items.filter((item) => /星期|周/.test(item.text)).map((item) => item.y)) - 8;
     dayColumns.filter((day) => day.day <= 5).forEach((day) => {
       const columnItems = items.filter((item) => item.x >= day.left && item.x < day.right && item.y < headerBottom);
-      const columnText = pdfItemsToText(columnItems);
-      parsePdfColumnCourses(columnItems, day.day, rowBounds).forEach((course) => courses.push(course));
-      if (columnText) {
-        parseHduCellCourses(columnText, day.day, 1, 13).forEach((course) => courses.push(course));
-      }
-      rowBounds.forEach((row) => {
-        const cellItems = items.filter((item) => item.x >= day.left && item.x < day.right && item.y <= row.top && item.y > row.bottom);
-        const text = pdfItemsToText(cellItems);
-        if (!text) return;
-        parseHduCellCourses(text, day.day, row.node, row.node).forEach((course) => courses.push(course));
-      });
+      parsePdfColumnCourses(columnItems, day.day).forEach((course) => courses.push(course));
     });
-    return dedupeImportedCourses(courses);
+    const structured = dedupeImportedCourses(courses);
+    return structured.length ? structured : parseHduText(items.map((item) => item.text).join("\n"));
   }
 
   function normalizePdfCoordinates(items) {
@@ -1042,7 +1033,7 @@
       .filter((line) => line.text && !isHeaderLike(line.text) && !isLegendText(line.text));
   }
 
-  function parsePdfColumnCourses(items, day, rowBounds) {
+  function parsePdfColumnCourses(items, day) {
     const lines = pdfItemsToLines(items);
     const sectionEntries = lines
       .map((line, index) => ({ line, index, section: sectionFromText(line.text) }))
