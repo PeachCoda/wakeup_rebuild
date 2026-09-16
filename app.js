@@ -875,8 +875,8 @@
 
   async function loadPdfJs() {
     if (window.pdfjsLib?.getDocument) return window.pdfjsLib;
-    const module = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs");
-    module.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+    const module = await import("./assets/pdfjs/pdf.min.mjs");
+    module.GlobalWorkerOptions.workerSrc = "./assets/pdfjs/pdf.worker.min.mjs";
     return module;
   }
 
@@ -889,9 +889,9 @@
     const data = new Uint8Array(await file.arrayBuffer());
     const pdf = await pdfjsLib.getDocument({
       data,
-      cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/cmaps/",
+      cMapUrl: "./assets/pdfjs/cmaps/",
       cMapPacked: true,
-      standardFontDataUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/standard_fonts/"
+      standardFontDataUrl: "./assets/pdfjs/standard_fonts/"
     }).promise;
     const courses = [];
     const cellRecords = [];
@@ -923,7 +923,8 @@
         height: Math.abs(item.height || item.transform?.[3] || 0)
       }))
       .filter((item) => item.text);
-    const listCourses = parseHduPdfListText(pdfItemsToText(rawItems));
+    const rawText = pdfItemsToText(rawItems);
+    const listCourses = parseHduPdfListText(rawText);
     if (listCourses.length >= 3) {
       return {
         courses: listCourses,
@@ -945,7 +946,16 @@
     }
     if (!dayColumns.length) {
       const fallbackCourses = parseHduText(items.map((item) => item.text).join("\n"));
-      return { courses: fallbackCourses, cellRecords: [] };
+      return {
+        courses: fallbackCourses,
+        cellRecords: [{
+          source: "pdf-raw",
+          page: pageNumber,
+          itemCount: rawItems.length,
+          text: rawText.slice(0, 6000),
+          parsed: null
+        }]
+      };
     }
     const cellRecords = extractHduPdfCellRecords(items, dayColumns, pageNumber);
     const structured = dedupeImportedCourses(cellRecords.map(parseHduPdfCellRecord).filter(Boolean));
