@@ -2384,8 +2384,18 @@
     if (event.key === "Escape") hideCourseDetail();
   });
 
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-1").catch(() => {});
+    });
+  }
+
+  registerServiceWorker();
   render();
 })();
+
 
 
 

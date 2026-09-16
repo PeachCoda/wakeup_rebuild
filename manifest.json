@@ -1,0 +1,27 @@
+{
+  "name": "FakeUp",
+  "short_name": "FakeUp",
+  "description": "轻量课表查看与 PDF 导入工具",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#eef4fb",
+  "theme_color": "#1677ff",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "./assets/icon-192.png?v=fakeup-icon-2",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icon-512.png?v=fakeup-icon-2",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
