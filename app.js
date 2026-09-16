@@ -883,14 +883,15 @@
       standardFontDataUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/standard_fonts/"
     }).promise;
     const courses = [];
+    const layout = { transpose: null, dayColumns: null };
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
-      courses.push(...await parseHduPdfPage(page));
+      courses.push(...await parseHduPdfPage(page, layout));
     }
     return dedupeImportedCourses(courses);
   }
 
-  async function parseHduPdfPage(page) {
+  async function parseHduPdfPage(page, layout) {
     const content = await page.getTextContent();
     const items = normalizePdfCoordinates(content.items
       .map((item) => ({
@@ -900,19 +901,16 @@
         width: item.width || 0,
         height: Math.abs(item.height || item.transform?.[3] || 0)
       }))
-      .filter((item) => item.text));
-    const dayColumns = detectPdfDayColumns(items);
-    const rowCenters = detectPdfSectionRows(items, dayColumns);
-    if (!dayColumns.length || rowCenters.length < 6) {
+      .filter((item) => item.text), layout);
+    let dayColumns = detectPdfDayColumns(items);
+    if (dayColumns.length) {
+      layout.dayColumns = dayColumns;
+    } else if (layout.dayColumns?.length) {
+      dayColumns = layout.dayColumns;
+    }
+    if (!dayColumns.length) {
       return parseHduText(items.map((item) => item.text).join("\n"));
     }
-    const rowBounds = rowCenters.map((row, index) => {
-      const previous = rowCenters[index - 1];
-      const next = rowCenters[index + 1];
-      const top = previous ? (previous.y + row.y) / 2 : row.y + Math.abs(row.y - (next?.y ?? row.y - 42)) / 2;
-      const bottom = next ? (row.y + next.y) / 2 : row.y - Math.abs((previous?.y ?? row.y + 42) - row.y) / 2;
-      return { ...row, top, bottom };
-    });
     const courses = [];
     const headerBottom = Math.max(...dayColumns.map((day) => day.y || 0), ...items.filter((item) => /星期|周/.test(item.text)).map((item) => item.y)) - 8;
     dayColumns.filter((day) => day.day <= 5).forEach((day) => {
@@ -923,17 +921,21 @@
     return structured.length ? structured : parseHduText(items.map((item) => item.text).join("\n"));
   }
 
-  function normalizePdfCoordinates(items) {
+  function normalizePdfCoordinates(items, layout = {}) {
     const dayHits = items.filter((item) => {
       const day = dayFromText(item.text);
       return day >= 1 && day <= 7 && /星期|周/.test(item.text);
     });
-    if (dayHits.length < 5) return items;
-    const xs = dayHits.map((item) => item.x);
-    const ys = dayHits.map((item) => item.y);
-    const xSpread = Math.max(...xs) - Math.min(...xs);
-    const ySpread = Math.max(...ys) - Math.min(...ys);
-    if (ySpread <= xSpread * 2) return items;
+    let transpose = layout.transpose;
+    if (dayHits.length >= 5) {
+      const xs = dayHits.map((item) => item.x);
+      const ys = dayHits.map((item) => item.y);
+      const xSpread = Math.max(...xs) - Math.min(...xs);
+      const ySpread = Math.max(...ys) - Math.min(...ys);
+      transpose = ySpread > xSpread * 2;
+      layout.transpose = transpose;
+    }
+    if (!transpose) return items;
     return items.map((item) => ({
       ...item,
       x: item.y,
