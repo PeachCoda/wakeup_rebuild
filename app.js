@@ -926,6 +926,18 @@
       }))
       .filter((item) => item.text);
     const rawText = pdfItemsToText(rawItems);
+    const coordinateListCourses = parseHduPdfCoordinateListItems(rawItems);
+    if (coordinateListCourses.length >= 3) {
+      return {
+        courses: coordinateListCourses,
+        cellRecords: coordinateListCourses.map((course) => ({
+          source: "hdu-pdf-coordinate-list",
+          page: pageNumber,
+          text: course.rawText || "",
+          parsed: course
+        }))
+      };
+    }
     const detailListCourses = parseHduPdfDetailListText(rawText);
     if (detailListCourses.length >= 3) {
       return {
@@ -1077,6 +1089,84 @@
   }
 
 
+
+
+  function parseHduPdfCoordinateListItems(rawItems) {
+    const items = rawItems.map((item) => ({
+      ...item,
+      text: cleanupImportLine(item.text || "")
+    })).filter((item) => item.text);
+    const detailStarts = items
+      .filter((item) => /周数\s*[:：]/.test(item.text))
+      .sort(pdfTopDownSort);
+    if (detailStarts.length < 3) return [];
+    const detailLeft = Math.min(...detailStarts.map((item) => item.x)) - 12;
+    const sectionItems = items
+      .map((item) => ({ ...item, section: listSectionToken(item.text) }))
+      .filter((item) => item.section && item.x < detailLeft - 20)
+      .sort(pdfTopDownSort);
+    const nameItems = items
+      .filter((item) => item.x > 80 && item.x < detailLeft - 10 && isCourseNameCandidateLine(item.text, { allowShortName: true }))
+      .sort(pdfTopDownSort);
+    const dayMarkers = items
+      .map((item) => ({ ...item, day: dayFromLeadingText(item.text) || (/星期|周/.test(item.text) ? dayFromText(item.text) : 0) }))
+      .filter((item) => item.day >= 1 && item.day <= 5 && item.x < detailLeft - 40)
+      .sort(pdfTopDownSort);
+
+    const rowDay = new Map();
+    let currentDay = 1;
+    [...dayMarkers.map((item) => ({ type: "day", item })), ...detailStarts.map((item) => ({ type: "row", item }))]
+      .sort((a, b) => pdfTopDownSort(a.item, b.item) || (a.type === "day" ? -1 : 1))
+      .forEach((event) => {
+        if (event.type === "day") currentDay = event.item.day;
+        else rowDay.set(event.item, currentDay);
+      });
+
+    return detailStarts.map((detail, index) => {
+      const next = detailStarts[index + 1];
+      const previous = detailStarts[index - 1];
+      const topBound = previous ? (previous.y + detail.y) / 2 : Number.POSITIVE_INFINITY;
+      const bottomBound = next ? (detail.y + next.y) / 2 : Number.NEGATIVE_INFINITY;
+      const detailLines = items
+        .filter((item) => item.x >= detailLeft && item.y <= topBound && item.y > bottomBound)
+        .sort(pdfTopDownSort)
+        .map((item) => item.text);
+      const detailText = cleanupImportLine(detailLines.join(" "));
+      const nameItem = nearestPdfListItem(nameItems, detail.y, (item) => item.x < detailLeft - 10);
+      const sectionItem = nearestPdfListItem(sectionItems, detail.y, () => true, 22);
+      const name = cleanupField(nameItem?.text || "");
+      const section = sectionItem?.section;
+      const weeks = weeksFromText(detailText);
+      if (!name || !isValidCourseNameLine(name) || !section || !weeks?.length) return null;
+      return {
+        name,
+        day: rowDay.get(detail) || 1,
+        start: clamp(section.start, 1, 13),
+        end: clamp(section.end, section.start, 13),
+        weeks,
+        teacher: detectTeacher([detailText], detailText),
+        room: detectRoom([detailText], detailText),
+        credit: detectCredit(detailText),
+        note: "",
+        rawText: `${name} ${section.start}-${section.end} ${detailText}`
+      };
+    }).filter(Boolean);
+  }
+
+  function pdfTopDownSort(a, b) {
+    return Math.abs(b.y - a.y) > 2 ? b.y - a.y : a.x - b.x;
+  }
+
+  function nearestPdfListItem(items, y, predicate, tolerance = 14) {
+    let best = null;
+    items.forEach((item) => {
+      if (!predicate(item)) return;
+      const distance = Math.abs(item.y - y);
+      if (distance > tolerance) return;
+      if (!best || distance < best.distance) best = { item, distance };
+    });
+    return best?.item || null;
+  }
 
   function parseHduPdfDetailListText(raw) {
     const source = cleanCourseText(raw);
