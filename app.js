@@ -1167,7 +1167,7 @@
     const detailText = cleanupImportLine(record.lines.join(" "));
     const weeks = weeksFromText(detailText);
     const name = cleanupField(record.name);
-    if (!record.day || record.day > 5 || !record.start || !record.end || !weeks?.length || !name || !isValidCourseNameLine(name)) return null;
+    if (!record.day || record.day > 5 || !record.start || !record.end || !weeks?.length || !name || !isCourseNameCandidateLine(name, { allowShortName: true })) return null;
     return {
       name,
       day: record.day,
