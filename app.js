@@ -875,8 +875,8 @@
 
   async function loadPdfJs() {
     if (window.pdfjsLib?.getDocument) return window.pdfjsLib;
-    const module = await import("./assets/pdfjs/pdf.min.mjs");
-    module.GlobalWorkerOptions.workerSrc = "./assets/pdfjs/pdf.worker.min.mjs";
+    const module = await import("./assets/pdfjs/pdf.min.js");
+    module.GlobalWorkerOptions.workerSrc = "./assets/pdfjs/pdf.worker.min.js";
     return module;
   }
 
