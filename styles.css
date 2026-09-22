@@ -1860,3 +1860,37 @@ body {
 .month-cell {
   font-size: 13px !important;
 }
+
+/* Final time rail scale and course contrast tuning. */
+.time-cell strong {
+  font-size: 18px !important;
+  line-height: 1 !important;
+}
+
+.time-cell span,
+.time-cell .time-range em,
+.time-cell .time-start,
+.time-cell .time-end {
+  font-size: 12px !important;
+  line-height: 1 !important;
+}
+
+.time-cell .time-start {
+  margin-bottom: 3px !important;
+}
+
+.time-cell .time-end {
+  margin-top: 3px !important;
+}
+
+.course-card strong,
+.course-card span,
+.course-card.compact strong,
+.course-card.compact span {
+  color: var(--course-text) !important;
+  font-weight: 600 !important;
+}
+
+.course-card strong {
+  font-weight: 680 !important;
+}
