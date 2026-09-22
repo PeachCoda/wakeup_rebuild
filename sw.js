@@ -1,13 +1,13 @@
-const CACHE_NAME = "fakeup-shell-v6";
+const CACHE_NAME = "fakeup-shell-v7";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=fakeup-ui-6",
+  "./styles.css?v=fakeup-ui-7",
   "./app.js?v=fakeup-pdf-32",
   "./manifest.json",
-  "./favicon.ico?v=fakeup-icon-2",
-  "./assets/icon-192.png?v=fakeup-icon-2",
-  "./assets/icon-512.png?v=fakeup-icon-2"
+  "./favicon.ico?v=fakeup-icon-3",
+  "./assets/icon-192.png?v=fakeup-icon-3",
+  "./assets/icon-512.png?v=fakeup-icon-3"
 ];
 
 self.addEventListener("install", (event) => {

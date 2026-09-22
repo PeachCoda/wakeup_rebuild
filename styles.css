@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  --bg: #eef3f8;
+  --bg: #c8f6fd;
   --page-bg: #ffffff;
   --surface: #ffffff;
   --surface-soft: #f7f9fc;
@@ -1189,7 +1189,7 @@ body {
 body {
   display: flex;
   justify-content: center;
-  background: #e8eef5;
+  background: #c8f6fd;
   font-family: "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
 }
 
