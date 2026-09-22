@@ -1,9 +1,9 @@
-const CACHE_NAME = "fakeup-shell-v1";
+const CACHE_NAME = "fakeup-shell-v2";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
   "./styles.css?v=fakeup-ui-4",
-  "./app.js?v=fakeup-pdf-28",
+  "./app.js?v=fakeup-pdf-29",
   "./manifest.json",
   "./favicon.ico?v=fakeup-icon-2",
   "./assets/icon-192.png?v=fakeup-icon-2",
@@ -56,3 +56,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+

@@ -897,10 +897,10 @@
     }).promise;
     const courses = [];
     const cellRecords = [];
-    const layout = { transpose: null, dayColumns: null };
+    const layout = { transpose: null, dayColumns: null, listDay: 1 };
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
-      const result = await parseHduPdfPage(page, layout, pageNumber);
+      const result = await parseHduPdfPage(page, layout, pageNumber, pdf.numPages);
       courses.push(...result.courses);
       cellRecords.push(...result.cellRecords);
     }
@@ -914,7 +914,7 @@
     };
   }
 
-  async function parseHduPdfPage(page, layout, pageNumber = 1) {
+  async function parseHduPdfPage(page, layout, pageNumber = 1, pageCount = 1) {
     const content = await page.getTextContent({
       disableCombineTextItems: true,
       disableNormalization: false
@@ -929,8 +929,8 @@
       }))
       .filter((item) => item.text);
     const rawText = pdfItemsToText(rawItems);
-    const streamListCourses = parseHduPdfItemStreamList(rawItems);
-    if (streamListCourses.length >= 3) {
+    const streamListCourses = parseHduPdfItemStreamList(rawItems, layout);
+    if (streamListCourses.length >= 3 || (pageCount > 1 && streamListCourses.length > 0)) {
       return {
         courses: streamListCourses,
         cellRecords: streamListCourses.map((course) => ({
@@ -1104,22 +1104,27 @@
 
 
 
-  function parseHduPdfItemStreamList(rawItems) {
+  function parseHduPdfItemStreamList(rawItems, layout = {}) {
     const items = rawItems
       .map((item) => ({ ...item, text: cleanupImportLine(item.text || "") }))
       .filter((item) => item.text && !isHeaderLike(item.text) && !/^打印时间/.test(item.text));
     const records = [];
-    let currentDay = 1;
+    let currentDay = layout.listDay || 1;
     let active = null;
     const finish = () => {
       if (active) records.push(active);
       active = null;
     };
+    const firstExplicitDay = items
+      .map((item) => dayFromLeadingText(item.text) || (/星期|周/.test(item.text) ? dayFromText(item.text) : 0))
+      .find((day) => day >= 1 && day <= 5);
+    if (firstExplicitDay === 1) currentDay = 1;
     items.forEach((item, index) => {
       const day = dayFromLeadingText(item.text) || (/星期|周/.test(item.text) ? dayFromText(item.text) : 0);
       if (day >= 1 && day <= 5 && /^\s*(?:星期|周)[一二三四五]\s*$/.test(item.text)) {
         finish();
         currentDay = day;
+        layout.listDay = currentDay;
         return;
       }
       const section = listSectionToken(item.text);
@@ -1160,7 +1165,9 @@
       if (active.name) active.lines.push(item.text);
     });
     finish();
-    return records.map((record) => parseHduPdfStreamRecord(record)).filter(Boolean);
+    const parsed = records.map((record) => parseHduPdfStreamRecord(record)).filter(Boolean);
+    if (parsed.length) layout.listDay = parsed[parsed.length - 1].day;
+    return parsed;
   }
 
   function parseHduPdfStreamRecord(record) {
@@ -2388,13 +2395,14 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-1").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-2").catch(() => {});
     });
   }
 
   registerServiceWorker();
   render();
 })();
+
 
 
 
