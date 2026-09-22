@@ -55,13 +55,17 @@
             <div class="eyebrow" id="dateRangeText"></div>
           </div>
           <div class="topbar-actions">
-            <label class="other-week-toggle" title="显示非本周课程">
-              <input id="headerShowOtherWeek" type="checkbox" />
-              <span>非本周</span>
-            </label>
-            <button class="week-pill" id="currentWeekBtn" type="button">本周</button>
-
-            <button class="icon-button utility-action pdf-import-action" id="openImportBtn" type="button" title="导入 PDF" aria-label="导入 PDF">PDF</button>
+            <button class="menu-button" id="topbarMenuBtn" type="button" aria-label="打开课表菜单" aria-haspopup="true" aria-expanded="false">
+              <span></span><span></span><span></span>
+            </button>
+            <div class="topbar-menu" id="topbarMenu" hidden>
+              <label class="menu-row other-week-toggle" title="显示非本周课程">
+                <input id="headerShowOtherWeek" type="checkbox" />
+                <span>显示非本周课程</span>
+              </label>
+              <button class="menu-row" id="currentWeekBtn" type="button">返回本周课表</button>
+              <button class="menu-row" id="openImportBtn" type="button">导入 PDF</button>
+            </div>
             <input id="pdfFileInput" class="sr-only" type="file" accept="application/pdf,.pdf" />
 
           </div>
@@ -105,7 +109,7 @@
 
           <label class="field">
             <span>格子高度</span>
-            <input id="settingCellHeight" type="number" min="72" max="132" required />
+            <input id="settingCellHeight" type="number" min="72" max="96" required />
           </label>
         </div>
 
@@ -128,7 +132,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-34"></script>
+    <script src="./app.js?v=fakeup-pdf-35"></script>
   </body>
 </html>
 

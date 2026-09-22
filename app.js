@@ -37,6 +37,8 @@
     prevWeekBtn: document.querySelector("#prevWeekBtn"),
     nextWeekBtn: document.querySelector("#nextWeekBtn"),
     currentWeekBtn: document.querySelector("#currentWeekBtn"),
+    topbarMenuBtn: document.querySelector("#topbarMenuBtn"),
+    topbarMenu: document.querySelector("#topbarMenu"),
     headerShowOtherWeek: document.querySelector("#headerShowOtherWeek"),
     openSettingsBtn: document.querySelector("#openSettingsBtn"),
     openImportBtn: document.querySelector("#openImportBtn"),
@@ -74,7 +76,7 @@
           startDate: fallbackStart,
           totalWeeks: termWeeks,
           nodes: 13,
-          cellHeight: 92,
+          cellHeight: 76,
           showWeekend: false,
           showOtherWeek: true,
           showTime: true,
@@ -107,7 +109,7 @@
         startDate: schedule.startDate || fallbackStart,
         totalWeeks: termWeeks,
         nodes: 13,
-        cellHeight: clamp(Number(schedule.cellHeight) || 92, 72, 132),
+        cellHeight: Math.min(clamp(Number(schedule.cellHeight) || 76, 72, 132), 76),
         showWeekend: false,
         showOtherWeek: schedule.showOtherWeek !== false,
         showTime: schedule.showTime !== false,
@@ -487,6 +489,24 @@
     document.querySelector(".week-picker-backdrop")?.remove();
   }
 
+  function openTopbarMenu() {
+    if (!elements.topbarMenu || !elements.topbarMenuBtn) return;
+    elements.topbarMenu.hidden = false;
+    elements.topbarMenuBtn.setAttribute("aria-expanded", "true");
+  }
+
+  function closeTopbarMenu() {
+    if (!elements.topbarMenu || !elements.topbarMenuBtn) return;
+    elements.topbarMenu.hidden = true;
+    elements.topbarMenuBtn.setAttribute("aria-expanded", "false");
+  }
+
+  function toggleTopbarMenu() {
+    if (!elements.topbarMenu || !elements.topbarMenuBtn) return;
+    if (elements.topbarMenu.hidden) openTopbarMenu();
+    else closeTopbarMenu();
+  }
+
   function showCourseDetail(courseId, sessionIndex = 0) {
     const schedule = currentSchedule();
     const course = schedule.courses.find((item) => item.id === courseId);
@@ -527,7 +547,7 @@
     schedule.startDate = elements.settingStartDate.value || fallbackStart;
     schedule.totalWeeks = termWeeks;
     schedule.nodes = 13;
-    schedule.cellHeight = clamp(Number(elements.settingCellHeight.value) || 92, 72, 132);
+    schedule.cellHeight = clamp(Number(elements.settingCellHeight.value) || 76, 72, 96);
     schedule.showWeekend = false;
     schedule.showTime = true;
     schedule.timeTable = cloneDefaultTimeTable(13);
@@ -1922,6 +1942,7 @@
   elements.currentWeekBtn.addEventListener("click", () => {
     state.selectedWeek = getCurrentWeek(currentSchedule());
     saveState();
+    closeTopbarMenu();
     render();
   });
   elements.weekPickerBtn?.addEventListener("click", openWeekPicker);
@@ -1931,7 +1952,10 @@
     render();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeWeekPicker();
+    if (event.key === "Escape") {
+      closeWeekPicker();
+      closeTopbarMenu();
+    }
   });
   elements.headerShowOtherWeek.addEventListener("change", () => {
     const schedule = currentSchedule();
@@ -1939,10 +1963,19 @@
     saveState();
     render();
   });
+  elements.topbarMenuBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleTopbarMenu();
+  });
+  elements.topbarMenu?.addEventListener("click", (event) => event.stopPropagation());
+  document.addEventListener("click", closeTopbarMenu);
 
   elements.closePdfDebugBtn?.addEventListener("click", hidePdfDebugJson);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
-  elements.openImportBtn.addEventListener("click", () => elements.pdfFileInput?.click());
+  elements.openImportBtn.addEventListener("click", () => {
+    closeTopbarMenu();
+    elements.pdfFileInput?.click();
+  });
   elements.newScheduleBtn.addEventListener("click", createNewSchedule);
   elements.saveSettingsBtn.addEventListener("click", saveSettingsFromDialog);
   elements.deleteScheduleBtn.addEventListener("click", deleteCurrentSchedule);
@@ -1956,7 +1989,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-8").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-9").catch(() => {});
     });
   }
 
