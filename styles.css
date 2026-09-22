@@ -1894,3 +1894,15 @@ body {
 .course-card strong {
   font-weight: 680 !important;
 }
+
+/* Uniform course card text weight. */
+.course-card strong,
+.course-card span,
+.course-card.compact strong,
+.course-card.compact span {
+  font-weight: 560 !important;
+}
+
+.course-card strong {
+  font-weight: 560 !important;
+}
