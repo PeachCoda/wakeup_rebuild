@@ -904,10 +904,6 @@ button:disabled {
   bottom: min(84vh, calc(100vh - 118px));
 }
 
-.pdf-debug-panel:not([hidden]) ~ .toast {
-  bottom: max(22px, env(safe-area-inset-bottom));
-}
-
 @media (max-width: 920px) {
   :root {
     --time-width: 72px;
@@ -1516,57 +1512,6 @@ body {
   font-size: 18px !important;
 }
 
-
-/* Local PDF parser debug: visible only when JS fills it after importing a PDF. */
-.pdf-debug-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 16px;
-  z-index: 80;
-  width: min(92vw, 720px);
-  max-height: min(58vh, 620px);
-  transform: translateX(-50%);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
-  border: 1px solid rgba(31, 41, 55, 0.16);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
-}
-
-.pdf-debug-panel[hidden] {
-  display: none !important;
-}
-
-.pdf-debug-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(31, 41, 55, 0.1);
-  font: 13px/1.4 system-ui, sans-serif;
-}
-
-.pdf-debug-head button {
-  border: 0;
-  border-radius: 999px;
-  padding: 6px 12px;
-  background: #1677ff;
-  color: #fff;
-  font: inherit;
-}
-
-.pdf-debug-panel pre {
-  margin: 0;
-  padding: 12px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: #111827;
-  font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-}
 
 /* Compact topbar menu and lighter timetable cards. */
 .topbar-actions {

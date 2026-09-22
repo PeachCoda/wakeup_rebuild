@@ -77,14 +77,9 @@
     closeSignInBtn: document.querySelector("#closeSignInBtn"),
     signInAccountLoginBtn: document.querySelector("#signInAccountLoginBtn"),
     signInSubmitBtn: document.querySelector("#signInSubmitBtn"),
-    pdfDebugPanel: document.querySelector("#pdfDebugPanel"),
-    pdfDebugText: document.querySelector("#pdfDebugText"),
-    closePdfDebugBtn: document.querySelector("#closePdfDebugBtn"),
     toast: document.querySelector("#toast")
   };
 
-  const pdfDebugEnabled = new URLSearchParams(window.location.search).get("debug") === "pdf"
-    || ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   let state = loadState();
   let signInCaptchaReadyPromise = null;
@@ -594,12 +589,10 @@
 
   function openSignInLogin() {
     window.open(signInLoginUrl, "_blank", "noopener");
-    showToast("已打开登录页");
   }
 
   function openExternalSignIn() {
     window.open(signInUrl, "_blank", "noopener");
-    showToast("已打开签到页");
   }
 
   function setSignInStatus(message, tone = "idle") {
@@ -671,7 +664,6 @@
     } catch (error) {
       setSignInLoggedIn(false);
       setSignInStatus(error?.message || "读取上课啦账号状态失败", "bad");
-      if (!options.quiet) showToast("读取登录态失败");
       return null;
     }
   }
@@ -680,7 +672,7 @@
     const username = elements.signInUsernameInput?.value.trim() || "";
     const password = elements.signInPasswordInput?.value || "";
     if (!username || !password) {
-      showToast("请输入学号和密码");
+      setSignInStatus("请输入学号和密码。", "warn");
       (username ? elements.signInPasswordInput : elements.signInUsernameInput)?.focus();
       return;
     }
@@ -696,10 +688,8 @@
       if (!response.ok || data?.ok === false) throw new Error(data?.message || `HTTP ${response.status}`);
       if (elements.signInPasswordInput) elements.signInPasswordInput.value = "";
       renderAccountStatus({ ...data, loggedIn: true });
-      showToast("上课啦已登录");
     } catch (error) {
       setSignInStatus(error?.message || "上课啦登录失败", "bad");
-      showToast("上课啦登录失败");
     }
   }
 
@@ -819,7 +809,6 @@
     if (!code) {
       finishSignInSubmit();
       setSignInStatus("请输入密令。", "warn");
-      showToast("请输入密令");
       return { captchaResult: true, bizResult: false };
     }
     try {
@@ -835,20 +824,17 @@
       if (response.ok && data?.ok) {
         finishSignInSubmit();
         setSignInStatus(data?.message || "签到成功。", "ok");
-        showToast("签到成功");
         if (elements.signInCodeInput) elements.signInCodeInput.value = "";
         return { captchaResult: true, bizResult: true };
       }
       const message = signInResultMessage(data);
       finishSignInSubmit();
       setSignInStatus(message, data?.code === "captcha_rejected" ? "warn" : "bad");
-      showToast(message);
       return { captchaResult: data?.code === "captcha_rejected" ? false : true, bizResult: false };
     } catch (error) {
       finishSignInSubmit();
       const message = error?.message || "提交失败";
       setSignInStatus(message, "bad");
-      showToast(message);
       return { captchaResult: true, bizResult: false };
     }
   }
@@ -856,7 +842,7 @@
   async function submitSignInCode() {
     const code = elements.signInCodeInput?.value.trim() || "";
     if (!code) {
-      showToast("请输入密令");
+      setSignInStatus("请输入密令。", "warn");
       elements.signInCodeInput?.focus();
       return;
     }
@@ -877,7 +863,6 @@
       finishSignInSubmit();
       const message = error?.message || "验证码启动失败";
       setSignInStatus(message, "bad");
-      showToast(message);
     }
   }
 
@@ -1018,9 +1003,7 @@
     try {
       showToast("正在解析 PDF…");
       const result = await parseHduPdfDocument(file);
-      if (pdfDebugEnabled) showPdfDebugJson(result.debugRecords);
       if (!result.courses.length) {
-        showPdfDebugJson(result.debugRecords);
         showToast("PDF 里没有识别到课程，请确认是个人课表导出的 PDF");
         return;
       }
@@ -2508,15 +2491,6 @@
     return String(value || "FakeUp课表").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 40) || "FakeUp课表";
   }
 
-  function showPdfDebugJson(records) {
-    if (!elements.pdfDebugPanel || !elements.pdfDebugText) return;
-    elements.pdfDebugText.textContent = JSON.stringify(records, null, 2);
-    elements.pdfDebugPanel.hidden = false;
-  }
-
-  function hidePdfDebugJson() {
-    if (elements.pdfDebugPanel) elements.pdfDebugPanel.hidden = true;
-  }
 
   function showToast(message) {
     elements.toast.textContent = message;
@@ -2570,7 +2544,6 @@
   elements.topbarMenu?.addEventListener("click", (event) => event.stopPropagation());
   document.addEventListener("click", closeTopbarMenu);
 
-  elements.closePdfDebugBtn?.addEventListener("click", hidePdfDebugJson);
   elements.openSignInBtn?.addEventListener("click", openSignInPanel);
   elements.closeSignInBtn?.addEventListener("click", closeSignInPanel);
   elements.signinBackdrop?.addEventListener("click", closeSignInPanel);
