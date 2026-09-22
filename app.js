@@ -259,7 +259,7 @@
       const date = addDays(weekStart, day - 1);
       const cell = document.createElement("div");
       cell.className = `day-cell${isSameDate(date, today) ? " today" : ""}`;
-      cell.innerHTML = `<strong>${dayNames[day - 1]}</strong><span>${date.getDate()}</span>`;
+      cell.innerHTML = `<div class="day-pill"><strong>${dayNames[day - 1]}</strong><span>${date.getDate()}</span></div>`;
       elements.weekStrip.append(cell);
     });
   }
@@ -1959,7 +1959,7 @@
     const margin = 44;
     const titleHeight = 120;
     const dateHeight = 96;
-    const timeWidth = 86;
+    const timeWidth = 112;
     const rowHeight = 96;
     const height = margin * 2 + titleHeight + dateHeight + rowHeight * schedule.nodes;
     const canvas = document.createElement("canvas");
@@ -2000,15 +2000,15 @@
     days.forEach((day, index) => {
       const date = addDays(weekStart, day - 1);
       const centerX = gridLeft + timeWidth + dayWidth * index + dayWidth / 2;
-      ctx.fillStyle = isSameDate(date, today) ? "#1976e8" : "#1f2937";
-      ctx.font = `400 28px ${fontFamily}`;
-      ctx.fillText(dayNames[day - 1], centerX, dateTop + 28);
-      if (isSameDate(date, today)) {
-        roundRect(ctx, centerX - 24, dateTop + 50, 48, 42, 14, "#dbeafe");
-        ctx.fillStyle = "#1976e8";
+      const isToday = isSameDate(date, today);
+      if (isToday) {
+        roundRect(ctx, centerX - 30, dateTop + 10, 60, 76, 20, "#dbeafe");
       }
+      ctx.fillStyle = isToday ? "#1976e8" : "#1f2937";
+      ctx.font = `400 28px ${fontFamily}`;
+      ctx.fillText(dayNames[day - 1], centerX, dateTop + 30);
       ctx.font = `400 34px ${fontFamily}`;
-      ctx.fillText(String(date.getDate()), centerX, dateTop + 72);
+      ctx.fillText(String(date.getDate()), centerX, dateTop + 68);
       drawLine(ctx, gridLeft + timeWidth + dayWidth * index, bodyTop, gridLeft + timeWidth + dayWidth * index, bodyTop + rowHeight * schedule.nodes);
     });
     drawLine(ctx, gridLeft + gridWidth, bodyTop, gridLeft + gridWidth, bodyTop + rowHeight * schedule.nodes);
@@ -2215,7 +2215,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-19").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-20").catch(() => {});
     });
   }
 
