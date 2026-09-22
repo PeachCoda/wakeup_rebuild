@@ -2152,6 +2152,27 @@ body {
 }
 
 
+
+.signin-captcha {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0.01;
+  pointer-events: none;
+}
+
+.captcha-trigger-proxy {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  opacity: 0.01;
+  border: 0;
+  padding: 0;
+}
+
 .signin-actions-single {
   grid-template-columns: 1fr;
 }

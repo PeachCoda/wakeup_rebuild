@@ -28,6 +28,9 @@
   const signInLoginUrl = "https://skl.hdu.edu.cn/api/login/dingtalk/auth?index=&code=0&authCode=0&state=0";
   const signInUrl = "https://skl.hdu.edu.cn/#/sign/in";
   const signInApiBase = "/api/signin";
+  const signInCaptchaScriptUrl = "https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js";
+  const signInCaptchaSceneId = "2q42bw25";
+  const signInCaptchaPrefix = "cr5a57";
 
   const elements = {
     scheduleList: document.querySelector("#scheduleList"),
@@ -69,6 +72,8 @@
     signInUsernameInput: document.querySelector("#signInUsernameInput"),
     signInPasswordInput: document.querySelector("#signInPasswordInput"),
     signInCodeInput: document.querySelector("#signInCodeInput"),
+    signInCaptcha: document.querySelector("#signInCaptcha"),
+    signInCaptchaTrigger: document.querySelector("#signInCaptchaTrigger"),
     closeSignInBtn: document.querySelector("#closeSignInBtn"),
     signInAccountLoginBtn: document.querySelector("#signInAccountLoginBtn"),
     signInSubmitBtn: document.querySelector("#signInSubmitBtn"),
@@ -82,6 +87,11 @@
     || ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   let state = loadState();
+  let signInCaptchaReadyPromise = null;
+  let signInCaptchaReady = false;
+  let signInCaptchaSubmitTimer = null;
+  let signInPositionCache = null;
+  let signInPositionCacheAt = 0;
   function createDefaultState() {
     const scheduleId = uid();
     return {
@@ -693,6 +703,137 @@
     }
   }
 
+  function loadSignInCaptchaScript() {
+    if (window.initAliyunCaptcha) return Promise.resolve();
+    const existing = document.querySelector(`script[src="${signInCaptchaScriptUrl}"]`);
+    if (existing) {
+      return new Promise((resolve, reject) => {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("验证码 SDK 加载失败")), { once: true });
+      });
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = signInCaptchaScriptUrl;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("验证码 SDK 加载失败，请检查网络后重试"));
+      document.head.appendChild(script);
+    });
+  }
+
+  function ensureSignInCaptcha() {
+    if (signInCaptchaReady && window.initAliyunCaptcha) return Promise.resolve();
+    if (signInCaptchaReadyPromise) return signInCaptchaReadyPromise;
+    signInCaptchaReadyPromise = loadSignInCaptchaScript().then(() => new Promise((resolve, reject) => {
+      if (!window.initAliyunCaptcha) throw new Error("验证码 SDK 初始化失败");
+      const timeout = window.setTimeout(() => reject(new Error("验证码初始化超时，请重试")), 8000);
+      try {
+        window.initAliyunCaptcha({
+          SceneId: signInCaptchaSceneId,
+          prefix: signInCaptchaPrefix,
+          mode: "popup",
+          element: "#signInCaptcha",
+          button: "#signInCaptchaTrigger",
+          captchaVerifyCallback: handleSignInCaptchaVerify,
+          onBizResultCallback: (passed) => {
+            if (passed && elements.signInCodeInput) elements.signInCodeInput.value = "";
+          },
+          getInstance: () => {
+            signInCaptchaReady = true;
+            window.clearTimeout(timeout);
+            resolve();
+          },
+          slideStyle: { width: Math.min(360, Math.max(260, window.innerWidth - 80)), height: 50 },
+          language: "cn"
+        });
+      } catch (error) {
+        window.clearTimeout(timeout);
+        reject(error);
+      }
+    })).catch((error) => {
+      signInCaptchaReady = false;
+      signInCaptchaReadyPromise = null;
+      throw error;
+    });
+    return signInCaptchaReadyPromise;
+  }
+
+  function finishSignInSubmit() {
+    if (signInCaptchaSubmitTimer) {
+      window.clearTimeout(signInCaptchaSubmitTimer);
+      signInCaptchaSubmitTimer = null;
+    }
+    if (elements.signInSubmitBtn) elements.signInSubmitBtn.disabled = false;
+  }
+
+  function getSignInPosition() {
+    if (signInPositionCache && Date.now() - signInPositionCacheAt < 5 * 60 * 1000) return Promise.resolve(signInPositionCache);
+    if (!navigator.geolocation) return Promise.reject(new Error("当前浏览器不支持定位，无法直接签到"));
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const coords = {
+          latitude: Number(position.coords.latitude).toFixed(6),
+          longitude: Number(position.coords.longitude).toFixed(6)
+        };
+        signInPositionCache = coords;
+        signInPositionCacheAt = Date.now();
+        resolve(coords);
+      }, (error) => {
+        const message = error?.code === 1 ? "需要允许定位后才能签到" : "定位失败，请确认系统定位已开启";
+        reject(new Error(message));
+      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 120000 });
+    });
+  }
+
+  function signInResultMessage(data) {
+    if (data?.message) return data.message;
+    const result = data?.result || {};
+    if (result.captchaVerifyCode === "F001") return "验证码风控未通过，请再点一次提交";
+    if (result.captchaVerifyCode && result.captchaVerifyCode !== "T001") return `验证码未通过（${result.captchaVerifyCode}），请重试`;
+    if (data?.upstreamStatus === 401) return "密令错误、签到未开始或当前课程不匹配";
+    return "签到失败，请重试";
+  }
+
+  async function handleSignInCaptchaVerify(captchaVerifyParam) {
+    const code = elements.signInCodeInput?.value.trim() || "";
+    if (!code) {
+      finishSignInSubmit();
+      setSignInStatus("请输入密令。", "warn");
+      showToast("请输入密令");
+      return { captchaResult: true, bizResult: false };
+    }
+    try {
+      setSignInStatus("正在获取定位…");
+      const position = await getSignInPosition();
+      setSignInStatus("正在提交密令…");
+      const response = await fetch(`${signInApiBase}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, captchaVerifyParam, latitude: position.latitude, longitude: position.longitude, userAgent: navigator.userAgent })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data?.ok) {
+        finishSignInSubmit();
+        setSignInStatus(data?.message || "签到成功。", "ok");
+        showToast("签到成功");
+        if (elements.signInCodeInput) elements.signInCodeInput.value = "";
+        return { captchaResult: true, bizResult: true };
+      }
+      const message = signInResultMessage(data);
+      finishSignInSubmit();
+      setSignInStatus(message, data?.code === "captcha_rejected" ? "warn" : "bad");
+      showToast(message);
+      return { captchaResult: data?.code === "captcha_rejected" ? false : true, bizResult: false };
+    } catch (error) {
+      finishSignInSubmit();
+      const message = error?.message || "提交失败";
+      setSignInStatus(message, "bad");
+      showToast(message);
+      return { captchaResult: true, bizResult: false };
+    }
+  }
+
   async function submitSignInCode() {
     const code = elements.signInCodeInput?.value.trim() || "";
     if (!code) {
@@ -700,26 +841,24 @@
       elements.signInCodeInput?.focus();
       return;
     }
-    setSignInStatus("正在提交密令…");
+    if (elements.signInSubmitBtn?.disabled) return;
+    if (elements.signInSubmitBtn) elements.signInSubmitBtn.disabled = true;
+    setSignInStatus("正在获取定位…");
     try {
-      const response = await fetch(`${signInApiBase}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (response.ok && data?.ok) {
-        setSignInStatus("签到成功。", "ok");
-        showToast("签到成功");
-        if (elements.signInCodeInput) elements.signInCodeInput.value = "";
-        return;
-      }
-      const message = data?.message || "签到失败";
-      setSignInStatus(message, data?.code === "captcha_required" ? "warn" : "bad");
-      showToast(data?.code === "captcha_required" ? "暂不能直接提交" : message);
+      await getSignInPosition();
+      setSignInStatus("正在准备验证码…");
+      await ensureSignInCaptcha();
+      setSignInStatus("正在唤起验证码…");
+      signInCaptchaSubmitTimer = window.setTimeout(() => {
+        finishSignInSubmit();
+        setSignInStatus("验证码没有返回，请再点一次提交。", "warn");
+      }, 25000);
+      elements.signInCaptchaTrigger?.click();
     } catch (error) {
-      setSignInStatus(error?.message || "提交失败", "bad");
-      showToast("提交失败");
+      finishSignInSubmit();
+      const message = error?.message || "验证码启动失败";
+      setSignInStatus(message, "bad");
+      showToast(message);
     }
   }
 

@@ -311,7 +311,8 @@ function sklRequest({ method = "GET", path, query, token, contentType, userAgent
     for (const [key, value] of Object.entries(query || {})) {
       if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
     }
-    const headers = { Accept: "application/json, text/plain, */*", Referer: `${BASE_URL}/index.html`, "User-Agent": userAgent || "FakeUp/skl-proxy (+https://kb.c0d4.ink)", "skl-ticket": newTicket() };
+    const safeUserAgent = String(userAgent || "FakeUp/skl-proxy (+https://kb.c0d4.ink)").replace(/[\r\n]/g, " ").slice(0, 300);
+    const headers = { Accept: "application/json, text/plain, */*", Referer: `${BASE_URL}/index.html`, "User-Agent": safeUserAgent, "skl-ticket": newTicket() };
     if (token) headers["X-Auth-Token"] = token;
     if (contentType) headers["Content-Type"] = contentType;
     const request = https.request(url, { method, headers, timeout: 15000 }, (response) => {
@@ -485,20 +486,39 @@ async function accountClear(req) {
   return { status: 200, cookie: clearCookieHeader(req), body: { ok: true, message: "已清除服务端保存的凭据" } };
 }
 
+function signInFailure(resp) {
+  const result = resp.json && typeof resp.json === "object" ? resp.json : null;
+  const code = result?.captchaVerifyCode || result?.code || "";
+  const rawMessage = result?.msg || result?.message || (typeof resp.text === "string" ? resp.text.trim() : "");
+  if (code === "F001") return { code: "captcha_rejected", message: "验证码风控未通过，请再点一次提交" };
+  if (code && code !== "T001") return { code: "captcha_rejected", message: `验证码未通过（${code}），请重试` };
+  if (resp.status === 401) return { code: "signin_failed", message: rawMessage || "密令错误、签到未开始或当前课程不匹配" };
+  if (resp.status === 414) return { code: "captcha_too_long", message: "验证码参数过长被上课啦网关拒绝，请再点一次提交" };
+  if (rawMessage) return { code: "signin_failed", message: rawMessage };
+  return { code: "signin_failed", message: "签到失败，请重试" };
+}
+
 async function submitWithCaptcha(req, body) {
   const code = String(body.code || "").trim();
   const captchaVerifyParam = String(body.captchaVerifyParam || "").trim();
   if (!code) return { status: 400, body: { ok: false, message: "缺少密令" } };
-  if (!captchaVerifyParam) return { status: 409, body: { ok: false, code: "captcha_required", message: "当前还不能直接提交密令：上课啦正式接口需要官方验证码参数。" } };
+  if (!captchaVerifyParam) return { status: 409, body: { ok: false, code: "captcha_required", message: "缺少官方验证码参数，请重新点击提交" } };
   let token = String(body.token || "").trim();
   const session = getSession(req);
   if (!token && session) token = (await tokenForRecord(session.record)).token;
-  if (!token) return { status: 400, body: { ok: false, message: "缺少登录态" } };
+  if (!token) return { status: 400, body: { ok: false, message: "缺少登录态，请先登录" } };
   const userResp = await sklRequest({ path: "/api/userinfo", query: { type: "", index: "index.html" }, token, userAgent: body.userAgent });
   const userId = String(body.userId || userResp.json?.id || "");
-  if (!userId) return { status: 401, body: { ok: false, message: "无法解析上课啦用户 ID" } };
-  const resp = await sklRequest({ method: "POST", path: "/api/ali-nvc/captcha-verify", query: { captchaVerifyParam, userid: userId, code, latitude: body.latitude, longitude: body.longitude, t: Date.now() }, token, contentType: "application/x-www-form-urlencoded", userAgent: body.userAgent });
-  return { status: resp.status || 502, body: { ok: Boolean(resp.json?.captchaVerifyResult && resp.json?.checkCodeDto), upstreamStatus: resp.status, result: resp.json || resp.text } };
+  if (!userId) return { status: 401, body: { ok: false, message: "无法解析上课啦用户 ID，请重新登录" } };
+  const latitude = body.latitude === undefined || body.latitude === null ? "" : String(body.latitude);
+  const longitude = body.longitude === undefined || body.longitude === null ? "" : String(body.longitude);
+  const resp = await sklRequest({ method: "POST", path: "/api/ali-nvc/captcha-verify", query: { captchaVerifyParam, userid: userId, code, latitude, longitude, t: Date.now() }, token, contentType: "application/x-www-form-urlencoded", userAgent: body.userAgent });
+  const result = resp.json || resp.text;
+  const ok = Boolean(resp.json?.captchaVerifyResult === true && resp.json?.checkCodeDto);
+  if (ok) return { status: 200, body: { ok: true, message: "签到成功", upstreamStatus: resp.status, result } };
+  const failure = signInFailure(resp);
+  const status = resp.status && resp.status !== 200 ? resp.status : 409;
+  return { status, body: { ok: false, ...failure, upstreamStatus: resp.status, result } };
 }
 
 async function serveStatic(req, res, url) {

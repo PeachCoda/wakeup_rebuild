@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-23" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-24" />
   </head>
   <body>
     <div class="app-shell">
@@ -110,6 +110,8 @@
         <span>密令</span>
         <input id="signInCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="老师给的签到密令" />
       </label>
+      <div class="signin-captcha" id="signInCaptcha" aria-hidden="true"></div>
+      <button class="captcha-trigger-proxy" id="signInCaptchaTrigger" type="button" tabindex="-1" aria-hidden="true">验证码</button>
       <div class="signin-actions signin-actions-single">
         <button class="primary-button" id="signInAccountLoginBtn" type="button">登录并保存</button>
         <button class="primary-button" id="signInSubmitBtn" type="button" hidden>提交密令</button>
@@ -163,7 +165,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-54"></script>
+    <script src="./app.js?v=fakeup-pdf-55"></script>
   </body>
 </html>
 
