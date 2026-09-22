@@ -879,12 +879,14 @@ button:disabled {
   position: fixed;
   left: 50%;
   bottom: max(22px, env(safe-area-inset-bottom));
-  z-index: 80;
+  z-index: 1000;
   max-width: calc(100vw - 36px);
   padding: 10px 16px;
   border-radius: 12px;
   background: #182235;
   color: #fff;
+  text-align: center;
+  word-break: break-word;
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
   opacity: 0;
   pointer-events: none;
@@ -895,6 +897,15 @@ button:disabled {
 .toast.show {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+
+.signin-panel:not([hidden]) ~ .toast {
+  bottom: min(84vh, calc(100vh - 118px));
+}
+
+.pdf-debug-panel:not([hidden]) ~ .toast {
+  bottom: max(22px, env(safe-area-inset-bottom));
 }
 
 @media (max-width: 920px) {
