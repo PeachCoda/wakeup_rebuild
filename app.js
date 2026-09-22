@@ -43,7 +43,6 @@
     topbarMenu: document.querySelector("#topbarMenu"),
     openSettingsBtn: document.querySelector("#openSettingsBtn"),
     openImportBtn: document.querySelector("#openImportBtn"),
-    shareScheduleBtn: document.querySelector("#shareScheduleBtn"),
     exportImageBtn: document.querySelector("#exportImageBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
     settingsDialog: document.querySelector("#settingsDialog"),
@@ -66,76 +65,6 @@
     || ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   let state = loadState();
-  importSharedScheduleFromUrl();
-
-
-  function importSharedScheduleFromUrl() {
-    const sharedValue = readSharePayloadFromUrl();
-    if (!sharedValue) return;
-    try {
-      const shared = decodeSharePayload(sharedValue);
-      const schedule = normalizeSharedSchedule(shared);
-      if (!schedule || !schedule.courses.length) throw new Error("empty shared schedule");
-      state = normalizeState({
-        currentScheduleId: schedule.id,
-        selectedWeek: clamp(Number(shared.selectedWeek) || 1, 1, termWeeks),
-        schedules: [schedule]
-      });
-      saveState();
-      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-      window.setTimeout(() => showToast("已载入分享课表"), 300);
-    } catch (error) {
-      console.warn("读取分享课表失败。", error);
-      window.setTimeout(() => showToast("分享链接无效或已损坏"), 300);
-    }
-  }
-
-  function readSharePayloadFromUrl() {
-    const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
-    const hashParams = new URLSearchParams(hash);
-    const queryParams = new URLSearchParams(window.location.search);
-    return hashParams.get("share") || queryParams.get("share") || "";
-  }
-
-  function normalizeSharedSchedule(shared) {
-    if (!shared || shared.source !== "fakeup-share-v1" || !Array.isArray(shared.courses)) return null;
-    const fallback = createDefaultState().schedules[0];
-    return {
-      ...fallback,
-      id: uid(),
-      name: cleanupField(shared.name || "分享课表") || "分享课表",
-      startDate: /^\d{4}-\d{2}-\d{2}$/.test(shared.startDate || "") ? shared.startDate : fallbackStart,
-      totalWeeks: termWeeks,
-      courses: shared.courses.map(expandSharedCourse).filter(Boolean)
-    };
-  }
-
-  function expandSharedCourse(course) {
-    if (!course || !course.n) return null;
-    const sessions = Array.isArray(course.s) ? course.s.map((session) => ({
-      day: Number(session[0]),
-      start: Number(session[1]),
-      end: Number(session[2]),
-      weeks: uniqueNumbers(session[3] || []).filter((week) => week >= 1 && week <= termWeeks),
-      room: cleanupField(session[4] || ""),
-      teacher: cleanupField(session[5] || "")
-    })).filter((session) => session.day && session.start && session.end && session.weeks.length) : [];
-    const first = sessions[0];
-    return normalizeCourse({
-      id: uid(),
-      name: cleanupField(course.n),
-      color: course.c || palette[0],
-      credit: course.cr || "",
-      teacher: cleanupField(course.t || first?.teacher || ""),
-      room: cleanupField(course.r || first?.room || ""),
-      day: first?.day || 1,
-      start: first?.start || 1,
-      end: first?.end || 1,
-      weeks: first?.weeks || [1],
-      sessions: sessions.length > 1 ? sessions : undefined
-    });
-  }
-
   function createDefaultState() {
     const scheduleId = uid();
     return {
@@ -2005,85 +1934,6 @@
   }
 
 
-  async function shareCurrentSchedule() {
-    const schedule = currentSchedule();
-    if (!schedule?.courses?.length) {
-      showToast("还没有课程可分享");
-      return;
-    }
-    const url = createShareUrl(schedule);
-    closeTopbarMenu();
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `${schedule.name || "FakeUp"}课表`,
-          text: "这是我的 FakeUp 课表",
-          url
-        });
-        return;
-      }
-    } catch (error) {
-      if (error?.name === "AbortError") return;
-      console.warn("系统分享失败，改为复制链接。", error);
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      showToast("分享链接已复制");
-    } catch (error) {
-      console.warn("复制分享链接失败。", error);
-      showToast("无法复制分享链接");
-    }
-  }
-
-  function createShareUrl(schedule) {
-    const payload = {
-      source: "fakeup-share-v1",
-      name: schedule.name || "我的课表",
-      startDate: schedule.startDate || fallbackStart,
-      selectedWeek: state.selectedWeek,
-      courses: schedule.courses.map(compactSharedCourse).filter(Boolean)
-    };
-    const url = new URL(window.location.href);
-    url.search = "";
-    url.hash = `share=${encodeSharePayload(payload)}`;
-    return url.toString();
-  }
-
-  function compactSharedCourse(course) {
-    const sessions = courseSessions(course).map((session) => [
-      Number(session.day),
-      Number(session.start),
-      Number(session.end),
-      uniqueNumbers(session.weeks || []),
-      session.room || "",
-      session.teacher || ""
-    ]).filter((session) => session[0] && session[1] && session[2] && session[3].length);
-    if (!sessions.length) return null;
-    return {
-      n: course.name,
-      c: course.color,
-      cr: course.credit || "",
-      t: course.teacher || "",
-      r: course.room || "",
-      s: sessions
-    };
-  }
-
-  function encodeSharePayload(payload) {
-    const bytes = new TextEncoder().encode(JSON.stringify(payload));
-    let binary = "";
-    bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  }
-
-  function decodeSharePayload(value) {
-    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized + "===".slice((normalized.length + 3) % 4);
-    const binary = atob(padded);
-    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    return JSON.parse(new TextDecoder().decode(bytes));
-  }
-
   async function exportScheduleImage() {
     const schedule = currentSchedule();
     if (!schedule?.courses?.length) {
@@ -2352,7 +2202,6 @@
 
   elements.closePdfDebugBtn?.addEventListener("click", hidePdfDebugJson);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
-  elements.shareScheduleBtn?.addEventListener("click", shareCurrentSchedule);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
   elements.openImportBtn.addEventListener("click", () => {
     closeTopbarMenu();
@@ -2371,7 +2220,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-17").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-18").catch(() => {});
     });
   }
 
