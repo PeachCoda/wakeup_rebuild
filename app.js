@@ -647,9 +647,8 @@
       return;
     }
     const userName = data?.user?.userName || data?.user?.id || "当前账号";
-    const courseCount = Number(data?.todayCourses?.length || 0);
     setSignInLoggedIn(true);
-    setSignInStatus(`${userName} 已登录，今天上课啦返回 ${courseCount} 门课。`, "ok");
+    setSignInStatus(`${userName} 已登录。`, "ok");
   }
 
   async function checkSignInAccountStatus(options = {}) {
@@ -717,7 +716,7 @@
       }
       const message = data?.message || "签到失败";
       setSignInStatus(message, data?.code === "captcha_required" ? "warn" : "bad");
-      showToast(message);
+      showToast(data?.code === "captcha_required" ? "暂不能直接提交" : message);
     } catch (error) {
       setSignInStatus(error?.message || "提交失败", "bad");
       showToast("提交失败");

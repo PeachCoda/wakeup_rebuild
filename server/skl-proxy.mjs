@@ -403,7 +403,7 @@ async function loginToSkl(username, password) {
   if (!token) throw new Error("SSO 登录成功后没有拿到上课啦 token");
   const probe = await probeToken({ token });
   if (probe.status !== 200) throw new Error(probe.body?.message || "上课啦 token 校验失败");
-  return { token, user: probe.body.user, todayCourses: probe.body.todayCourses };
+  return { token, user: probe.body.user };
 }
 
 async function todayCoursesForToken(token, body = {}) {
@@ -415,9 +415,13 @@ async function todayCoursesForToken(token, body = {}) {
 async function probeToken(body) {
   const token = String(body.token || "").trim();
   if (!token) return { status: 400, body: { ok: false, message: "缺少 sessionId" } };
-  const userResp = await sklRequest({ path: "/api/userinfo", query: { type: "", index: "index.html" }, token, userAgent: body.userAgent });
-  if (userResp.status !== 200 || !userResp.json || userResp.json.url) return { status: 401, body: { ok: false, message: "上课啦登录态无效或已过期", upstreamStatus: userResp.status } };
-  return { status: 200, body: { ok: true, user: safeUser(userResp.json), todayCourses: await todayCoursesForToken(token, body), message: "登录态有效" } };
+  try {
+    const userResp = await sklRequest({ path: "/api/userinfo", query: { type: "", index: "index.html" }, token, userAgent: body.userAgent });
+    if (userResp.status !== 200 || !userResp.json || userResp.json.url) return { status: 401, body: { ok: false, message: "上课啦登录态无效或已过期", upstreamStatus: userResp.status } };
+    return { status: 200, body: { ok: true, user: safeUser(userResp.json), message: "登录态有效" } };
+  } catch (error) {
+    return { status: 502, body: { ok: false, message: error.message || "上课啦接口暂时不可用" } };
+  }
 }
 
 async function refreshTokenForRecord(record) {
@@ -435,7 +439,7 @@ async function tokenForRecord(record) {
   if (record?.token) {
     const token = await decryptText(record.token);
     const probe = await probeToken({ token });
-    if (probe.status === 200) return { token, user: probe.body.user, todayCourses: probe.body.todayCourses };
+    if (probe.status === 200) return { token, user: probe.body.user };
   }
   return refreshTokenForRecord(record);
 }
@@ -450,7 +454,7 @@ async function accountLogin(req) {
   state.users[username] = { username, encryptedPassword: await encryptText(password), token: await encryptText(result.token), user: result.user, createdAt: state.users[username]?.createdAt || now(), updatedAt: now() };
   const sid = createSession(username);
   await saveState();
-  return { status: 200, cookie: cookieHeader(req, sid), body: { ok: true, user: result.user, todayCourses: result.todayCourses, message: "已登录并保存凭据" } };
+  return { status: 200, cookie: cookieHeader(req, sid), body: { ok: true, user: result.user, message: "已登录并保存凭据" } };
 }
 
 async function accountStatus(req) {
@@ -458,7 +462,7 @@ async function accountStatus(req) {
   if (!session) return { status: 200, body: { ok: true, loggedIn: false } };
   try {
     const result = await tokenForRecord(session.record);
-    return { status: 200, body: { ok: true, loggedIn: true, user: result.user || session.record.user || { id: session.username }, todayCourses: result.todayCourses || [], message: "登录态有效" } };
+    return { status: 200, body: { ok: true, loggedIn: true, user: result.user || session.record.user || { id: session.username }, message: "登录态有效" } };
   } catch (error) {
     return { status: 401, body: { ok: false, loggedIn: false, message: error.message || "登录态失效" } };
   }
@@ -482,13 +486,14 @@ async function accountClear(req) {
 }
 
 async function submitWithCaptcha(req, body) {
+  const code = String(body.code || "").trim();
+  const captchaVerifyParam = String(body.captchaVerifyParam || "").trim();
+  if (!code) return { status: 400, body: { ok: false, message: "缺少密令" } };
+  if (!captchaVerifyParam) return { status: 409, body: { ok: false, code: "captcha_required", message: "当前还不能直接提交密令：上课啦正式接口需要官方验证码参数。" } };
   let token = String(body.token || "").trim();
   const session = getSession(req);
   if (!token && session) token = (await tokenForRecord(session.record)).token;
-  const code = String(body.code || "").trim();
-  const captchaVerifyParam = String(body.captchaVerifyParam || "").trim();
-  if (!token || !code) return { status: 400, body: { ok: false, message: "缺少登录态或密令" } };
-  if (!captchaVerifyParam) return { status: 409, body: { ok: false, code: "captcha_required", message: "当前正式签到接口需要官方阿里验证码的一次性 captchaVerifyParam。" } };
+  if (!token) return { status: 400, body: { ok: false, message: "缺少登录态" } };
   const userResp = await sklRequest({ path: "/api/userinfo", query: { type: "", index: "index.html" }, token, userAgent: body.userAgent });
   const userId = String(body.userId || userResp.json?.id || "");
   if (!userId) return { status: 401, body: { ok: false, message: "无法解析上课啦用户 ID" } };
