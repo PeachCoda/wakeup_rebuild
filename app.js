@@ -1959,7 +1959,7 @@
     const margin = 44;
     const titleHeight = 120;
     const dateHeight = 96;
-    const timeWidth = 112;
+    const timeWidth = 86;
     const rowHeight = 96;
     const height = margin * 2 + titleHeight + dateHeight + rowHeight * schedule.nodes;
     const canvas = document.createElement("canvas");
@@ -2016,14 +2016,9 @@
     for (let node = 1; node <= schedule.nodes; node += 1) {
       const y = bodyTop + (node - 1) * rowHeight;
       drawDashedLine(ctx, gridLeft, y, gridLeft + gridWidth, y, "#e7edf3");
-      const time = schedule.timeTable[node - 1] || defaultTimes[node - 1] || ["", ""];
       ctx.fillStyle = "#1f2937";
-      ctx.font = `400 24px ${fontFamily}`;
-      ctx.fillText(time[0], gridLeft + timeWidth / 2, y + 24);
-      ctx.font = `400 32px ${fontFamily}`;
+      ctx.font = `400 38px ${fontFamily}`;
       ctx.fillText(String(node), gridLeft + timeWidth / 2, y + rowHeight / 2);
-      ctx.font = `400 24px ${fontFamily}`;
-      ctx.fillText(time[1], gridLeft + timeWidth / 2, y + rowHeight - 24);
     }
     drawDashedLine(ctx, gridLeft, bodyTop + rowHeight * schedule.nodes, gridLeft + gridWidth, bodyTop + rowHeight * schedule.nodes, "#e7edf3");
 
@@ -2220,7 +2215,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-18").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-19").catch(() => {});
     });
   }
 
