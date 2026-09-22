@@ -309,7 +309,7 @@
       card.type = "button";
       card.style.setProperty("--course-color", item.course.color);
       card.style.setProperty("--course-bg", tintColor(item.course.color, item.isActive ? 0.76 : 0.88));
-      card.style.setProperty("--course-text", shadeColor(item.course.color, item.isActive ? 0.62 : 0.64));
+      card.style.setProperty("--course-text", courseTextColor(item.course.color, item.isActive));
       const dayWidth = `(100% - var(--time-width)) / ${days.length}`;
       card.style.left = `calc(var(--time-width) + (${dayWidth}) * ${dayIndex} + (${dayWidth}) * ${item.laneIndex / item.laneCount} + ${gap}px)`;
       card.style.top = `${(item.start - 1) * schedule.cellHeight + gap}px`;
@@ -1848,6 +1848,14 @@
     return `rgb(${mix(rgb.r)}, ${mix(rgb.g)}, ${mix(rgb.b)})`;
   }
 
+  function courseTextColor(hex, active = true) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return active ? "#4f6670" : "#6b7280";
+    const amount = active ? 0.34 : 0.26;
+    const mix = (channel) => Math.round(channel * (1 - amount));
+    return `rgb(${mix(rgb.r)}, ${mix(rgb.g)}, ${mix(rgb.b)})`;
+  }
+
   function hexToRgb(hex) {
     const value = String(hex).replace("#", "");
     if (!/^[0-9a-f]{6}$/i.test(value)) return null;
@@ -2005,7 +2013,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-14").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-15").catch(() => {});
     });
   }
 
