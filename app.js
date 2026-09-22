@@ -2191,7 +2191,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-5").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-7").catch(() => {});
     });
   }
 
