@@ -2,9 +2,10 @@
   "use strict";
 
   const storageKey = "clean-schedule-state-v2";
-  const dayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+  const dayNames = ["一", "二", "三", "四", "五", "六", "日"];
   const termWeeks = 17;
-  const palette = ["#1aa6a6", "#258bd2", "#d48a35", "#7c58d9", "#e86852", "#2fa56f", "#c15ba5", "#5b8def", "#c47f2c", "#15a3c7", "#df5f8f", "#6d8f28"];
+  const oldPalette = ["#1aa6a6", "#258bd2", "#d48a35", "#7c58d9", "#e86852", "#2fa56f", "#c15ba5", "#5b8def", "#c47f2c", "#15a3c7", "#df5f8f", "#6d8f28"];
+  const palette = ["#7dd8d5", "#9cccf5", "#f5b8ae", "#cbb7f4", "#9edfc1", "#f4cd86", "#efb6d3", "#a9d9f4", "#c8e4a5", "#b9d9ff", "#f7c1b0", "#a8e2df"];
   const defaultTimes = [
     ["08:05", "08:50"],
     ["08:55", "09:40"],
@@ -37,9 +38,9 @@
     prevWeekBtn: document.querySelector("#prevWeekBtn"),
     nextWeekBtn: document.querySelector("#nextWeekBtn"),
     currentWeekBtn: document.querySelector("#currentWeekBtn"),
+    toggleOtherWeekBtn: document.querySelector("#toggleOtherWeekBtn"),
     topbarMenuBtn: document.querySelector("#topbarMenuBtn"),
     topbarMenu: document.querySelector("#topbarMenu"),
-    headerShowOtherWeek: document.querySelector("#headerShowOtherWeek"),
     openSettingsBtn: document.querySelector("#openSettingsBtn"),
     openImportBtn: document.querySelector("#openImportBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
@@ -140,7 +141,7 @@
     return {
       id: repairedCourse.id || uid(),
       name: normalizedName.slice(0, 30),
-      color: repairedCourse.color || palette[0],
+      color: freshCourseColor(repairedCourse.color || palette[0]),
       credit: repairedCourse.credit ? String(repairedCourse.credit).slice(0, 8) : "",
       day: first.day,
       start: first.start,
@@ -208,7 +209,7 @@
     state.selectedWeek = clamp(state.selectedWeek, 1, schedule.totalWeeks);
     document.documentElement.style.setProperty("--day-count", visibleDays(schedule).length);
     document.documentElement.style.setProperty("--cell-height", `${schedule.cellHeight}px`);
-    if (elements.headerShowOtherWeek) elements.headerShowOtherWeek.checked = schedule.showOtherWeek;
+    if (elements.toggleOtherWeekBtn) elements.toggleOtherWeekBtn.textContent = schedule.showOtherWeek ? "隐藏非本周课程" : "显示非本周课程";
     renderScheduleList(schedule);
     renderWeekHeader(schedule);
     renderTimetable(schedule);
@@ -272,14 +273,14 @@
       timeCell.className = "time-cell";
       const time = schedule.timeTable[node - 1] || defaultTimes[node - 1] || ["", ""];
       timeCell.innerHTML = schedule.showTime
-        ? `<strong>${node}</strong><span>${time[0]}</span><span>${time[1]}</span>`
+        ? `<strong>${node}</strong><span class="time-range"><em>${time[0]}</em><em>${time[1]}</em></span>`
         : `<strong>${node}</strong>`;
       elements.timetable.append(timeCell);
 
       days.forEach((day) => {
         const cell = document.createElement("div");
         cell.className = `grid-cell${day >= 6 ? " weekend" : ""}`;
-        cell.setAttribute("aria-label", `${dayNames[day - 1]} 第 ${node} 节`);
+        cell.setAttribute("aria-label", `周${dayNames[day - 1]} 第 ${node} 节`);
         elements.timetable.append(cell);
       });
     }
@@ -297,7 +298,7 @@
       return;
     }
 
-    const gap = 3;
+    const gap = 1;
     const placedItems = layoutCourseItems(visibleItems);
     placedItems.forEach((item) => {
       const dayIndex = days.indexOf(item.day);
@@ -307,8 +308,8 @@
       card.className = `course-card${item.isActive ? "" : " other-week"}${conflict ? " conflict" : ""}${item.laneCount > 1 ? " compact" : ""}`;
       card.type = "button";
       card.style.setProperty("--course-color", item.course.color);
-      card.style.setProperty("--course-bg", tintColor(item.course.color, item.isActive ? 0.84 : 0.9));
-      card.style.setProperty("--course-text", shadeColor(item.course.color, item.isActive ? 0.28 : 0.48));
+      card.style.setProperty("--course-bg", tintColor(item.course.color, item.isActive ? 0.76 : 0.88));
+      card.style.setProperty("--course-text", shadeColor(item.course.color, item.isActive ? 0.36 : 0.48));
       const dayWidth = `(100% - var(--time-width)) / ${days.length}`;
       card.style.left = `calc(var(--time-width) + (${dayWidth}) * ${dayIndex} + (${dayWidth}) * ${item.laneIndex / item.laneCount} + ${gap}px)`;
       card.style.top = `${(item.start - 1) * schedule.cellHeight + gap}px`;
@@ -519,7 +520,7 @@
           <h3>${escapeHtml(course.name)}</h3>
         </div>
         <div class="detail-row"><span>周数</span><strong>${escapeHtml(formatWeeks(session.weeks || course.weeks))}</strong></div>
-        <div class="detail-row"><span>时间</span><strong>${escapeHtml(dayNames[(session.day || course.day) - 1])} · ${escapeHtml(sessionTimeText(schedule, session))}</strong></div>
+        <div class="detail-row"><span>时间</span><strong>周${escapeHtml(dayNames[(session.day || course.day) - 1])} · ${escapeHtml(sessionTimeText(schedule, session))}</strong></div>
         <div class="detail-row"><span>地点</span><strong>${escapeHtml(session.room || course.room || "未填写")}</strong></div>
         <div class="detail-row"><span>老师</span><strong>${escapeHtml(session.teacher || course.teacher || "未填写")}</strong></div>
         <div class="detail-row"><span>学分</span><strong>${escapeHtml(course.credit || "未填写")}</strong></div>
@@ -1197,6 +1198,21 @@
 
   function courseColor(index) {
     return palette[index % palette.length];
+  }
+
+
+  function freshCourseColor(color) {
+    const source = String(color || "").toLowerCase();
+    const oldIndex = oldPalette.findIndex((item) => item.toLowerCase() === source);
+    if (oldIndex >= 0) return palette[oldIndex % palette.length];
+    const rgb = hexToRgb(source);
+    if (!rgb) return palette[0];
+    const luminance = (rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114) / 255;
+    if (luminance < 0.58) {
+      const mix = (channel) => Math.round(channel + (255 - channel) * 0.38);
+      return `#${[mix(rgb.r), mix(rgb.g), mix(rgb.b)].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+    }
+    return source;
   }
   function isHduScheduleUrl(raw) {
     return /^https?:\/\/\S+$/i.test(raw) && /(newjw\.hdu\.edu\.cn|jwglxt|kbcx|xskbcx)/i.test(raw);
@@ -1957,10 +1973,11 @@
       closeTopbarMenu();
     }
   });
-  elements.headerShowOtherWeek.addEventListener("change", () => {
+  elements.toggleOtherWeekBtn?.addEventListener("click", () => {
     const schedule = currentSchedule();
-    schedule.showOtherWeek = elements.headerShowOtherWeek.checked;
+    schedule.showOtherWeek = !schedule.showOtherWeek;
     saveState();
+    closeTopbarMenu();
     render();
   });
   elements.topbarMenuBtn?.addEventListener("click", (event) => {
@@ -1989,7 +2006,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-9").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-10").catch(() => {});
     });
   }
 

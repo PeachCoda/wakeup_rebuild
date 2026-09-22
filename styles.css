@@ -1682,3 +1682,101 @@ body {
   justify-content: flex-start !important;
   background: transparent !important;
 }
+
+/* Final mobile polish: slimmer menu, lighter cards, flatter week picker. */
+.menu-button {
+  width: 34px !important;
+  height: 34px !important;
+  gap: 5px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--accent) !important;
+  box-shadow: none !important;
+}
+
+.menu-button span {
+  width: 21px !important;
+  height: 2px !important;
+}
+
+.time-cell {
+  gap: 4px !important;
+}
+
+.time-cell .time-range {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 2px !important;
+  line-height: 1 !important;
+}
+
+.time-cell .time-range em {
+  display: block;
+  font-style: normal;
+}
+
+.course-card {
+  gap: 1px !important;
+  padding: 9px 4px 6px !important;
+  border-radius: 10px !important;
+}
+
+.course-card::before {
+  height: 6px !important;
+  border-radius: 10px 10px 0 0 !important;
+  opacity: 0.82 !important;
+}
+
+.course-card strong,
+.course-card span,
+.course-card.compact strong,
+.course-card.compact span {
+  font-size: 11px !important;
+  line-height: 1.15 !important;
+  font-weight: 500 !important;
+}
+
+.course-card strong {
+  font-weight: 600 !important;
+}
+
+.week-picker-sheet {
+  max-height: min(44vh, 360px) !important;
+  padding: 12px 12px max(14px, env(safe-area-inset-bottom)) !important;
+  border-radius: 22px 22px 0 0 !important;
+}
+
+.week-picker-head {
+  margin-bottom: 8px !important;
+}
+
+.week-picker-head strong {
+  font-size: 18px !important;
+}
+
+.week-picker-close {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 12px !important;
+  font-size: 20px !important;
+}
+
+.week-picker-grid {
+  gap: 6px !important;
+}
+
+.week-option {
+  min-height: 42px !important;
+  border-radius: 13px !important;
+}
+
+.week-option strong {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.week-option span {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+}

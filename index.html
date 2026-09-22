@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-8" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-9" />
   </head>
   <body>
     <div class="app-shell">
@@ -59,10 +59,7 @@
               <span></span><span></span><span></span>
             </button>
             <div class="topbar-menu" id="topbarMenu" hidden>
-              <label class="menu-row other-week-toggle" title="显示非本周课程">
-                <input id="headerShowOtherWeek" type="checkbox" />
-                <span>显示非本周课程</span>
-              </label>
+              <button class="menu-row" id="toggleOtherWeekBtn" type="button">显示非本周课程</button>
               <button class="menu-row" id="currentWeekBtn" type="button">返回本周课表</button>
               <button class="menu-row" id="openImportBtn" type="button">导入 PDF</button>
             </div>
@@ -132,7 +129,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-35"></script>
+    <script src="./app.js?v=fakeup-pdf-36"></script>
   </body>
 </html>
 
