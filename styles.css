@@ -1780,3 +1780,49 @@ body {
   font-size: 10px !important;
   font-weight: 600 !important;
 }
+
+/* Time rail and week picker refinements. */
+.time-cell {
+  display: grid !important;
+  grid-template-rows: 1fr auto 1fr !important;
+  align-items: center !important;
+  justify-items: center !important;
+  gap: 0 !important;
+  padding-block: 5px !important;
+}
+
+.time-cell strong {
+  grid-row: 2 !important;
+  font-size: 24px !important;
+  line-height: 1 !important;
+}
+
+.time-cell span {
+  font-size: 14px !important;
+  line-height: 1 !important;
+}
+
+.time-cell .time-start {
+  align-self: end !important;
+  margin-bottom: 5px !important;
+}
+
+.time-cell .time-end {
+  align-self: start !important;
+  margin-top: 5px !important;
+}
+
+.course-card strong,
+.course-card span,
+.course-card.compact strong,
+.course-card.compact span {
+  font-weight: 600 !important;
+}
+
+.course-card strong {
+  font-weight: 700 !important;
+}
+
+.week-picker-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}

@@ -273,7 +273,7 @@
       timeCell.className = "time-cell";
       const time = schedule.timeTable[node - 1] || defaultTimes[node - 1] || ["", ""];
       timeCell.innerHTML = schedule.showTime
-        ? `<strong>${node}</strong><span class="time-range"><em>${time[0]}</em><em>${time[1]}</em></span>`
+        ? `<span class="time-start">${time[0]}</span><strong>${node}</strong><span class="time-end">${time[1]}</span>`
         : `<strong>${node}</strong>`;
       elements.timetable.append(timeCell);
 
@@ -309,7 +309,7 @@
       card.type = "button";
       card.style.setProperty("--course-color", item.course.color);
       card.style.setProperty("--course-bg", tintColor(item.course.color, item.isActive ? 0.76 : 0.88));
-      card.style.setProperty("--course-text", shadeColor(item.course.color, item.isActive ? 0.36 : 0.48));
+      card.style.setProperty("--course-text", shadeColor(item.course.color, item.isActive ? 0.52 : 0.58));
       const dayWidth = `(100% - var(--time-width)) / ${days.length}`;
       card.style.left = `calc(var(--time-width) + (${dayWidth}) * ${dayIndex} + (${dayWidth}) * ${item.laneIndex / item.laneCount} + ${gap}px)`;
       card.style.top = `${(item.start - 1) * schedule.cellHeight + gap}px`;
@@ -458,7 +458,6 @@
         <div class="week-picker-head">
           <div>
             <strong>选择周数</strong>
-            <span>${escapeHtml(schedule.name || "我的课表")}</span>
           </div>
           <button class="week-picker-close" type="button" aria-label="关闭">×</button>
         </div>
@@ -2006,7 +2005,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-10").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-11").catch(() => {});
     });
   }
 
