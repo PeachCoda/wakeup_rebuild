@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-14" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-15" />
   </head>
   <body>
     <div class="app-shell">
@@ -61,6 +61,8 @@
             <div class="topbar-menu" id="topbarMenu" hidden>
               <button class="menu-row" id="toggleOtherWeekBtn" type="button">显示非本周课程</button>
               <button class="menu-row" id="currentWeekBtn" type="button">返回本周课表</button>
+              <button class="menu-row" id="shareScheduleBtn" type="button">分享课表链接</button>
+              <button class="menu-row" id="exportImageBtn" type="button">导出课表图片</button>
               <button class="menu-row" id="openImportBtn" type="button">导入 PDF</button>
             </div>
             <input id="pdfFileInput" class="sr-only" type="file" accept="application/pdf,.pdf" />
@@ -129,7 +131,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-42"></script>
+    <script src="./app.js?v=fakeup-pdf-43"></script>
   </body>
 </html>
 

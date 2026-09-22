@@ -43,6 +43,8 @@
     topbarMenu: document.querySelector("#topbarMenu"),
     openSettingsBtn: document.querySelector("#openSettingsBtn"),
     openImportBtn: document.querySelector("#openImportBtn"),
+    shareScheduleBtn: document.querySelector("#shareScheduleBtn"),
+    exportImageBtn: document.querySelector("#exportImageBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
     settingsDialog: document.querySelector("#settingsDialog"),
     settingName: document.querySelector("#settingName"),
@@ -64,6 +66,75 @@
     || ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   let state = loadState();
+  importSharedScheduleFromUrl();
+
+
+  function importSharedScheduleFromUrl() {
+    const sharedValue = readSharePayloadFromUrl();
+    if (!sharedValue) return;
+    try {
+      const shared = decodeSharePayload(sharedValue);
+      const schedule = normalizeSharedSchedule(shared);
+      if (!schedule || !schedule.courses.length) throw new Error("empty shared schedule");
+      state = normalizeState({
+        currentScheduleId: schedule.id,
+        selectedWeek: clamp(Number(shared.selectedWeek) || 1, 1, termWeeks),
+        schedules: [schedule]
+      });
+      saveState();
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      window.setTimeout(() => showToast("已载入分享课表"), 300);
+    } catch (error) {
+      console.warn("读取分享课表失败。", error);
+      window.setTimeout(() => showToast("分享链接无效或已损坏"), 300);
+    }
+  }
+
+  function readSharePayloadFromUrl() {
+    const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+    const hashParams = new URLSearchParams(hash);
+    const queryParams = new URLSearchParams(window.location.search);
+    return hashParams.get("share") || queryParams.get("share") || "";
+  }
+
+  function normalizeSharedSchedule(shared) {
+    if (!shared || shared.source !== "fakeup-share-v1" || !Array.isArray(shared.courses)) return null;
+    const fallback = createDefaultState().schedules[0];
+    return {
+      ...fallback,
+      id: uid(),
+      name: cleanupField(shared.name || "分享课表") || "分享课表",
+      startDate: /^\d{4}-\d{2}-\d{2}$/.test(shared.startDate || "") ? shared.startDate : fallbackStart,
+      totalWeeks: termWeeks,
+      courses: shared.courses.map(expandSharedCourse).filter(Boolean)
+    };
+  }
+
+  function expandSharedCourse(course) {
+    if (!course || !course.n) return null;
+    const sessions = Array.isArray(course.s) ? course.s.map((session) => ({
+      day: Number(session[0]),
+      start: Number(session[1]),
+      end: Number(session[2]),
+      weeks: uniqueNumbers(session[3] || []).filter((week) => week >= 1 && week <= termWeeks),
+      room: cleanupField(session[4] || ""),
+      teacher: cleanupField(session[5] || "")
+    })).filter((session) => session.day && session.start && session.end && session.weeks.length) : [];
+    const first = sessions[0];
+    return normalizeCourse({
+      id: uid(),
+      name: cleanupField(course.n),
+      color: course.c || palette[0],
+      credit: course.cr || "",
+      teacher: cleanupField(course.t || first?.teacher || ""),
+      room: cleanupField(course.r || first?.room || ""),
+      day: first?.day || 1,
+      start: first?.start || 1,
+      end: first?.end || 1,
+      weeks: first?.weeks || [1],
+      sessions: sessions.length > 1 ? sessions : undefined
+    });
+  }
 
   function createDefaultState() {
     const scheduleId = uid();
@@ -1933,6 +2004,291 @@
       .replaceAll("'", "&#039;");
   }
 
+
+  async function shareCurrentSchedule() {
+    const schedule = currentSchedule();
+    if (!schedule?.courses?.length) {
+      showToast("还没有课程可分享");
+      return;
+    }
+    const url = createShareUrl(schedule);
+    closeTopbarMenu();
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${schedule.name || "FakeUp"}课表`,
+          text: "这是我的 FakeUp 课表",
+          url
+        });
+        return;
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      console.warn("系统分享失败，改为复制链接。", error);
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("分享链接已复制");
+    } catch (error) {
+      console.warn("复制分享链接失败。", error);
+      showToast("无法复制分享链接");
+    }
+  }
+
+  function createShareUrl(schedule) {
+    const payload = {
+      source: "fakeup-share-v1",
+      name: schedule.name || "我的课表",
+      startDate: schedule.startDate || fallbackStart,
+      selectedWeek: state.selectedWeek,
+      courses: schedule.courses.map(compactSharedCourse).filter(Boolean)
+    };
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.hash = `share=${encodeSharePayload(payload)}`;
+    return url.toString();
+  }
+
+  function compactSharedCourse(course) {
+    const sessions = courseSessions(course).map((session) => [
+      Number(session.day),
+      Number(session.start),
+      Number(session.end),
+      uniqueNumbers(session.weeks || []),
+      session.room || "",
+      session.teacher || ""
+    ]).filter((session) => session[0] && session[1] && session[2] && session[3].length);
+    if (!sessions.length) return null;
+    return {
+      n: course.name,
+      c: course.color,
+      cr: course.credit || "",
+      t: course.teacher || "",
+      r: course.room || "",
+      s: sessions
+    };
+  }
+
+  function encodeSharePayload(payload) {
+    const bytes = new TextEncoder().encode(JSON.stringify(payload));
+    let binary = "";
+    bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+
+  function decodeSharePayload(value) {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "===".slice((normalized.length + 3) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+
+  async function exportScheduleImage() {
+    const schedule = currentSchedule();
+    if (!schedule?.courses?.length) {
+      showToast("还没有课程可导出");
+      return;
+    }
+    closeTopbarMenu();
+    showToast("正在生成图片…");
+    try {
+      const blob = await renderScheduleImageBlob(schedule);
+      downloadBlob(blob, `${safeFileName(schedule.name || "FakeUp课表")}-第${state.selectedWeek}周.png`);
+      showToast("课表图片已导出");
+    } catch (error) {
+      console.warn("导出课表图片失败。", error);
+      showToast("图片导出失败");
+    }
+  }
+
+  function renderScheduleImageBlob(schedule) {
+    const days = visibleDays(schedule);
+    const weekStart = addDays(parseISODate(schedule.startDate), (state.selectedWeek - 1) * 7);
+    const width = 1280;
+    const margin = 44;
+    const titleHeight = 120;
+    const dateHeight = 96;
+    const timeWidth = 112;
+    const rowHeight = 96;
+    const height = margin * 2 + titleHeight + dateHeight + rowHeight * schedule.nodes;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    const fontFamily = '"Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", SimSun, serif';
+    ctx.fillStyle = "#f8fdff";
+    ctx.fillRect(0, 0, width, height);
+    roundRect(ctx, 20, 20, width - 40, height - 40, 32, "#ffffff");
+
+    ctx.fillStyle = "#1f2937";
+    ctx.font = `600 52px ${fontFamily}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(`第 ${state.selectedWeek} 周`, margin, margin);
+    ctx.font = `400 28px ${fontFamily}`;
+    ctx.fillStyle = "#64748b";
+    ctx.fillText(`${schedule.name || "FakeUp"} · ${formatWeekSubtitle(schedule, weekStart)}`, margin, margin + 64);
+
+    const gridLeft = margin;
+    const gridTop = margin + titleHeight;
+    const dateTop = gridTop;
+    const bodyTop = gridTop + dateHeight;
+    const gridWidth = width - margin * 2;
+    const dayWidth = (gridWidth - timeWidth) / days.length;
+
+    ctx.strokeStyle = "#e5e7eb";
+    ctx.lineWidth = 2;
+    drawLine(ctx, gridLeft, bodyTop, gridLeft + gridWidth, bodyTop);
+    drawLine(ctx, gridLeft + timeWidth, bodyTop, gridLeft + timeWidth, bodyTop + rowHeight * schedule.nodes);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `400 26px ${fontFamily}`;
+    ctx.fillStyle = "#334155";
+    ctx.fillText(`${weekStart.getMonth() + 1}月`, gridLeft + timeWidth / 2, dateTop + dateHeight / 2);
+    days.forEach((day, index) => {
+      const date = addDays(weekStart, day - 1);
+      const centerX = gridLeft + timeWidth + dayWidth * index + dayWidth / 2;
+      ctx.fillStyle = isSameDate(date, today) ? "#1976e8" : "#1f2937";
+      ctx.font = `400 28px ${fontFamily}`;
+      ctx.fillText(dayNames[day - 1], centerX, dateTop + 28);
+      if (isSameDate(date, today)) {
+        roundRect(ctx, centerX - 24, dateTop + 50, 48, 42, 14, "#dbeafe");
+        ctx.fillStyle = "#1976e8";
+      }
+      ctx.font = `400 34px ${fontFamily}`;
+      ctx.fillText(String(date.getDate()), centerX, dateTop + 72);
+      drawLine(ctx, gridLeft + timeWidth + dayWidth * index, bodyTop, gridLeft + timeWidth + dayWidth * index, bodyTop + rowHeight * schedule.nodes);
+    });
+    drawLine(ctx, gridLeft + gridWidth, bodyTop, gridLeft + gridWidth, bodyTop + rowHeight * schedule.nodes);
+
+    for (let node = 1; node <= schedule.nodes; node += 1) {
+      const y = bodyTop + (node - 1) * rowHeight;
+      drawDashedLine(ctx, gridLeft, y, gridLeft + gridWidth, y, "#e7edf3");
+      const time = schedule.timeTable[node - 1] || defaultTimes[node - 1] || ["", ""];
+      ctx.fillStyle = "#1f2937";
+      ctx.font = `400 24px ${fontFamily}`;
+      ctx.fillText(time[0], gridLeft + timeWidth / 2, y + 24);
+      ctx.font = `400 32px ${fontFamily}`;
+      ctx.fillText(String(node), gridLeft + timeWidth / 2, y + rowHeight / 2);
+      ctx.font = `400 24px ${fontFamily}`;
+      ctx.fillText(time[1], gridLeft + timeWidth / 2, y + rowHeight - 24);
+    }
+    drawDashedLine(ctx, gridLeft, bodyTop + rowHeight * schedule.nodes, gridLeft + gridWidth, bodyTop + rowHeight * schedule.nodes, "#e7edf3");
+
+    const visibleItems = collapseEquivalentSessions(schedule.courses
+      .flatMap((course) => courseRenderItems(course, state.selectedWeek))
+      .filter((item) => days.includes(item.day))
+      .filter((item) => item.isActive || schedule.showOtherWeek));
+    layoutCourseItems(visibleItems).forEach((item) => {
+      const dayIndex = days.indexOf(item.day);
+      if (dayIndex < 0) return;
+      const gap = 4;
+      const x = gridLeft + timeWidth + dayWidth * dayIndex + dayWidth * item.laneIndex / item.laneCount + gap;
+      const y = bodyTop + (item.start - 1) * rowHeight + gap;
+      const w = dayWidth / item.laneCount - gap * 2;
+      const h = (item.end - item.start + 1) * rowHeight - gap * 2;
+      const bg = tintColor(item.course.color, item.isActive ? 0.78 : 0.9);
+      const textColor = item.isActive ? courseTextColor(item.course.color) : "#6f7785";
+      roundRect(ctx, x, y, w, h, 18, bg);
+      roundRect(ctx, x, y, w, 12, { tl: 18, tr: 18, br: 0, bl: 0 }, tintColor(item.course.color, item.isActive ? 0.08 : 0.38));
+      const lines = [item.course.name];
+      if (!item.isActive) lines.push("非本周");
+      if (item.teacher) lines.push(item.teacher);
+      if (item.room) lines.push(item.room);
+      ctx.fillStyle = textColor;
+      ctx.font = `500 ${item.laneCount > 1 ? 20 : 23}px ${fontFamily}`;
+      drawWrappedCenteredLines(ctx, lines, x + 10, y + 20, w - 20, h - 30, item.laneCount > 1 ? 24 : 28);
+    });
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("canvas toBlob failed")), "image/png", 0.95);
+    });
+  }
+
+  function formatWeekSubtitle(schedule, weekStart) {
+    const weekEnd = addDays(weekStart, 4);
+    return `${schedule.startDate.slice(0, 4)}-${schedule.startDate.slice(5, 7)} · ${weekStart.getMonth() + 1}/${weekStart.getDate()}-${weekEnd.getMonth() + 1}/${weekEnd.getDate()}`;
+  }
+
+  function drawWrappedCenteredLines(ctx, groups, x, y, width, height, lineHeight) {
+    const lines = groups.flatMap((group, index) => {
+      const wrapped = wrapTextForCanvas(ctx, String(group || ""), width);
+      return index ? ["", ...wrapped] : wrapped;
+    }).filter((line, index, array) => line || array[index - 1] !== "");
+    const visible = lines.slice(0, Math.max(1, Math.floor(height / lineHeight)));
+    let currentY = y + Math.max(0, (height - visible.length * lineHeight) / 2) + lineHeight / 2;
+    visible.forEach((line) => {
+      if (line) ctx.fillText(line, x + width / 2, currentY);
+      currentY += lineHeight;
+    });
+  }
+
+  function wrapTextForCanvas(ctx, text, width) {
+    const chars = Array.from(text);
+    const lines = [];
+    let line = "";
+    chars.forEach((char) => {
+      const next = line + char;
+      if (line && ctx.measureText(next).width > width) {
+        lines.push(line);
+        line = char;
+      } else {
+        line = next;
+      }
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function roundRect(ctx, x, y, width, height, radius, fillStyle) {
+    const r = typeof radius === "number" ? { tl: radius, tr: radius, br: radius, bl: radius } : radius;
+    ctx.beginPath();
+    ctx.moveTo(x + r.tl, y);
+    ctx.lineTo(x + width - r.tr, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r.tr);
+    ctx.lineTo(x + width, y + height - r.br);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r.br, y + height);
+    ctx.lineTo(x + r.bl, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r.bl);
+    ctx.lineTo(x, y + r.tl);
+    ctx.quadraticCurveTo(x, y, x + r.tl, y);
+    ctx.closePath();
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+  }
+
+  function drawLine(ctx, x1, y1, x2, y2) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  function drawDashedLine(ctx, x1, y1, x2, y2, color) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.setLineDash([8, 8]);
+    drawLine(ctx, x1, y1, x2, y2);
+    ctx.restore();
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function safeFileName(value) {
+    return String(value || "FakeUp课表").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 40) || "FakeUp课表";
+  }
+
   function showPdfDebugJson(records) {
     if (!elements.pdfDebugPanel || !elements.pdfDebugText) return;
     elements.pdfDebugText.textContent = JSON.stringify(records, null, 2);
@@ -1996,6 +2352,8 @@
 
   elements.closePdfDebugBtn?.addEventListener("click", hidePdfDebugJson);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
+  elements.shareScheduleBtn?.addEventListener("click", shareCurrentSchedule);
+  elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
   elements.openImportBtn.addEventListener("click", () => {
     closeTopbarMenu();
     elements.pdfFileInput?.click();
@@ -2013,7 +2371,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-16").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-17").catch(() => {});
     });
   }
 

@@ -1669,6 +1669,8 @@ body {
 
 #topbarMenu .other-week-toggle,
 #topbarMenu #currentWeekBtn,
+#topbarMenu #shareScheduleBtn,
+#topbarMenu #exportImageBtn,
 #topbarMenu #openImportBtn {
   width: 100% !important;
   min-width: 0 !important;
