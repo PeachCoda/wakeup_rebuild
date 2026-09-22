@@ -24,6 +24,8 @@
 
   const today = startOfDay(new Date());
   const fallbackStart = toISODate(startOfWeek(today));
+  const signInLoginUrl = "https://skl.hdu.edu.cn/api/login/dingtalk/auth?index=&code=0&authCode=0&state=0";
+  const signInUrl = "https://skl.hdu.edu.cn/#/sign/in";
 
   const elements = {
     scheduleList: document.querySelector("#scheduleList"),
@@ -43,6 +45,7 @@
     topbarMenu: document.querySelector("#topbarMenu"),
     openSettingsBtn: document.querySelector("#openSettingsBtn"),
     openImportBtn: document.querySelector("#openImportBtn"),
+    openSignInBtn: document.querySelector("#openSignInBtn"),
     exportImageBtn: document.querySelector("#exportImageBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
     settingsDialog: document.querySelector("#settingsDialog"),
@@ -55,6 +58,14 @@
     sheetBackdrop: document.querySelector("#sheetBackdrop"),
     courseSheet: document.querySelector("#courseSheet"),
     courseDetail: document.querySelector("#courseDetail"),
+    signinBackdrop: document.querySelector("#signinBackdrop"),
+    signinPanel: document.querySelector("#signinPanel"),
+    signinCurrentCourse: document.querySelector("#signinCurrentCourse"),
+    closeSignInBtn: document.querySelector("#closeSignInBtn"),
+    signInLoginBtn: document.querySelector("#signInLoginBtn"),
+    signInInlineBtn: document.querySelector("#signInInlineBtn"),
+    signInExternalBtn: document.querySelector("#signInExternalBtn"),
+    signInFrame: document.querySelector("#signInFrame"),
     pdfDebugPanel: document.querySelector("#pdfDebugPanel"),
     pdfDebugText: document.querySelector("#pdfDebugText"),
     closePdfDebugBtn: document.querySelector("#closePdfDebugBtn"),
@@ -505,6 +516,79 @@
     if (!elements.topbarMenu || !elements.topbarMenuBtn) return;
     if (elements.topbarMenu.hidden) openTopbarMenu();
     else closeTopbarMenu();
+  }
+
+
+  function openSignInPanel() {
+    closeTopbarMenu();
+    renderSignInCurrentCourse();
+    elements.signinBackdrop.hidden = false;
+    elements.signinPanel.hidden = false;
+  }
+
+  function closeSignInPanel() {
+    if (!elements.signinBackdrop || !elements.signinPanel) return;
+    elements.signinBackdrop.hidden = true;
+    elements.signinPanel.hidden = true;
+  }
+
+  function renderSignInCurrentCourse() {
+    if (!elements.signinCurrentCourse) return;
+    const item = getCurrentLiveCourse(currentSchedule());
+    if (!item) {
+      elements.signinCurrentCourse.innerHTML = "<strong>当前没有匹配到正在上的课</strong><span>仍可打开上课啦签到页。</span>";
+      return;
+    }
+    const room = item.room ? ` · ${escapeHtml(item.room)}` : "";
+    const teacher = item.teacher ? ` · ${escapeHtml(item.teacher)}` : "";
+    elements.signinCurrentCourse.innerHTML = `<strong>${escapeHtml(item.course.name)}</strong><span>${escapeHtml(sessionTimeText(currentSchedule(), item))}${room}${teacher}</span>`;
+  }
+
+  function getCurrentLiveCourse(schedule) {
+    const week = getCurrentWeek(schedule);
+    const day = getChinaWeekday(today);
+    const now = new Date();
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    const todays = collapseEquivalentSessions(schedule.courses
+      .flatMap((course) => courseRenderItems(course, week))
+      .filter((item) => item.day === day && item.isActive))
+      .sort((a, b) => a.start - b.start);
+    return todays.find((item) => {
+      const start = timeToMinutes((schedule.timeTable[item.start - 1] || defaultTimes[item.start - 1] || [])[0]);
+      const end = timeToMinutes((schedule.timeTable[item.end - 1] || defaultTimes[item.end - 1] || [])[1]);
+      return start !== null && end !== null && minutes >= start - 10 && minutes <= end + 10;
+    }) || todays.find((item) => item.start >= currentNodeByTime(schedule, minutes)) || null;
+  }
+
+  function currentNodeByTime(schedule, minutes) {
+    const index = schedule.timeTable.findIndex((range) => {
+      const end = timeToMinutes(range[1]);
+      return end !== null && minutes <= end;
+    });
+    return index >= 0 ? index + 1 : schedule.nodes + 1;
+  }
+
+  function timeToMinutes(value) {
+    const match = String(value || "").match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+
+  function openSignInLogin() {
+    window.open(signInLoginUrl, "_blank", "noopener");
+    showToast("已打开登录页");
+  }
+
+  function openInlineSignIn() {
+    if (!elements.signInFrame) return;
+    elements.signInFrame.hidden = false;
+    elements.signInFrame.src = signInUrl;
+    showToast("正在打开签到页…");
+  }
+
+  function openExternalSignIn() {
+    window.open(signInUrl, "_blank", "noopener");
+    showToast("已打开签到页");
   }
 
   function showCourseDetail(courseId, sessionIndex = 0) {
@@ -2179,6 +2263,7 @@
     if (event.key === "Escape") {
       closeWeekPicker();
       closeTopbarMenu();
+      closeSignInPanel();
     }
   });
   elements.toggleOtherWeekBtn?.addEventListener("click", () => {
@@ -2196,6 +2281,12 @@
   document.addEventListener("click", closeTopbarMenu);
 
   elements.closePdfDebugBtn?.addEventListener("click", hidePdfDebugJson);
+  elements.openSignInBtn?.addEventListener("click", openSignInPanel);
+  elements.closeSignInBtn?.addEventListener("click", closeSignInPanel);
+  elements.signinBackdrop?.addEventListener("click", closeSignInPanel);
+  elements.signInLoginBtn?.addEventListener("click", openSignInLogin);
+  elements.signInInlineBtn?.addEventListener("click", openInlineSignIn);
+  elements.signInExternalBtn?.addEventListener("click", openExternalSignIn);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
   elements.openImportBtn.addEventListener("click", () => {
@@ -2215,7 +2306,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-20").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-21").catch(() => {});
     });
   }
 

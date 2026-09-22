@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-16" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-17" />
   </head>
   <body>
     <div class="app-shell">
@@ -61,6 +61,7 @@
             <div class="topbar-menu" id="topbarMenu" hidden>
               <button class="menu-row" id="toggleOtherWeekBtn" type="button">显示非本周课程</button>
               <button class="menu-row" id="currentWeekBtn" type="button">返回本周课表</button>
+              <button class="menu-row" id="openSignInBtn" type="button">上课啦签到</button>
               <button class="menu-row" id="exportImageBtn" type="button">导出课表图片</button>
               <button class="menu-row" id="openImportBtn" type="button">导入 PDF</button>
             </div>
@@ -83,6 +84,26 @@
       <div class="sheet-handle"></div>
       <div id="courseDetail"></div>
     </section>
+
+    <div class="signin-backdrop" id="signinBackdrop" hidden></div>
+    <section class="signin-panel" id="signinPanel" aria-label="上课啦签到" hidden>
+      <header class="signin-head">
+        <div>
+          <p class="eyebrow">上课啦</p>
+          <h3>密令签到</h3>
+        </div>
+        <button class="icon-button" id="closeSignInBtn" type="button" aria-label="关闭">×</button>
+      </header>
+      <div class="signin-current" id="signinCurrentCourse">正在判断当前课程…</div>
+      <p class="signin-note">先刷新钉钉登录态，再打开签到页输入密令。定位和提交仍由上课啦页面完成。</p>
+      <div class="signin-actions">
+        <button class="plain-button" id="signInLoginBtn" type="button">刷新登录态</button>
+        <button class="primary-button" id="signInInlineBtn" type="button">页内打开签到</button>
+        <button class="primary-button" id="signInExternalBtn" type="button">新窗口打开</button>
+      </div>
+      <iframe id="signInFrame" class="signin-frame" title="上课啦签到页" allow="geolocation; clipboard-read; clipboard-write" hidden></iframe>
+    </section>
+
 
     <dialog id="settingsDialog" class="dialog">
       <form method="dialog" id="settingsForm" class="dialog-card">
@@ -130,7 +151,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-46"></script>
+    <script src="./app.js?v=fakeup-pdf-47"></script>
   </body>
 </html>
 
