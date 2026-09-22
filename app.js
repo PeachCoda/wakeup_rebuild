@@ -909,7 +909,7 @@
       cellRecords,
       debugRecords: cellRecords.map((record) => ({
         ...record,
-        parsed: record.parsed || parseHduPdfCellRecord(record)
+        parsed: record.parsed || null
       }))
     };
   }
@@ -955,10 +955,11 @@
     }
     const detailListCourses = parseHduPdfDetailListText(rawText);
     const listCourses = parseHduPdfListText(rawText);
-    if (listCourses.length >= 3) {
+    const textListCourses = listCourses.length >= detailListCourses.length ? listCourses : detailListCourses;
+    if (textListCourses.length >= 3) {
       return {
-        courses: listCourses,
-        cellRecords: listCourses.map((course) => ({
+        courses: textListCourses,
+        cellRecords: textListCourses.map((course) => ({
           source: "hdu-pdf-list",
           page: pageNumber,
           text: course.rawText || "",
@@ -966,38 +967,15 @@
         }))
       };
     }
-    const items = normalizePdfCoordinates(rawItems, layout);
-
-    let dayColumns = detectPdfDayColumns(items);
-    if (dayColumns.length) {
-      layout.dayColumns = dayColumns;
-    } else if (layout.dayColumns?.length) {
-      dayColumns = layout.dayColumns;
-    }
-    if (!dayColumns.length) {
-      const fallbackCourses = parseHduText(items.map((item) => item.text).join("\n"));
-      return {
-        courses: fallbackCourses,
-        cellRecords: [{
-          source: "pdf-raw",
-          page: pageNumber,
-          itemCount: rawItems.length,
-          text: rawText.slice(0, 6000),
-          parsed: null
-        }]
-      };
-    }
-    const cellRecords = extractHduPdfCellRecords(items, dayColumns, pageNumber);
-    const structured = dedupeImportedCourses(cellRecords.map(parseHduPdfCellRecord).filter(Boolean));
-    const fallbackCourses = structured.length ? structured : parseHduText(items.map((item) => item.text).join("\n"));
     return {
-      courses: fallbackCourses,
-      cellRecords: cellRecords.length || fallbackCourses.length ? cellRecords : [{
-        source: "pdf-raw",
+      courses: [],
+      cellRecords: [{
+        source: "hdu-pdf-list-raw",
         page: pageNumber,
         itemCount: rawItems.length,
-        dayColumnCount: dayColumns.length,
-        listCourseCount: listCourses.length,
+        streamListCourseCount: streamListCourses.length,
+        coordinateListCourseCount: coordinateListCourses.length,
+        textListCourseCount: listCourses.length,
         detailListCourseCount: detailListCourses.length,
         rawItems: rawItems.slice(0, 220).map((item) => ({
           text: item.text,
@@ -1010,75 +988,6 @@
         parsed: null
       }]
     };
-  }
-
-  function normalizePdfCoordinates(items, layout = {}) {
-    const dayHits = items.filter((item) => {
-      const day = dayFromText(item.text);
-      return day >= 1 && day <= 7 && /星期|周/.test(item.text);
-    });
-    let transpose = layout.transpose;
-    if (dayHits.length >= 5) {
-      const xs = dayHits.map((item) => item.x);
-      const ys = dayHits.map((item) => item.y);
-      const xSpread = Math.max(...xs) - Math.min(...xs);
-      const ySpread = Math.max(...ys) - Math.min(...ys);
-      transpose = ySpread > xSpread * 2;
-      layout.transpose = transpose;
-    }
-    if (!transpose) return items;
-    return items.map((item) => ({
-      ...item,
-      x: item.y,
-      y: -item.x,
-      width: 0,
-      height: item.width || item.height || 0
-    }));
-  }
-
-  function detectPdfDayColumns(items) {
-    const hits = [];
-    items.forEach((item) => {
-      const day = dayFromText(item.text);
-      if (day >= 1 && day <= 7 && /星期|周/.test(item.text)) {
-        hits.push({ day, x: item.x + item.width / 2, y: item.y });
-      }
-    });
-    const byDay = new Map();
-    hits.sort((a, b) => b.y - a.y).forEach((item) => {
-      if (!byDay.has(item.day)) byDay.set(item.day, item);
-    });
-    const centers = Array.from(byDay.values()).sort((a, b) => a.x - b.x);
-    if (centers.length < 5) return [];
-    return centers.map((item, index) => {
-      const previous = centers[index - 1];
-      const next = centers[index + 1];
-      const gap = next ? next.x - item.x : item.x - previous.x;
-      return {
-        day: item.day,
-        x: item.x,
-        left: previous ? (previous.x + item.x) / 2 : item.x - gap / 2,
-        right: next ? (item.x + next.x) / 2 : item.x + gap / 2
-      };
-    });
-  }
-
-  function detectPdfSectionRows(items, dayColumns) {
-    const firstDayLeft = Math.min(...dayColumns.map((item) => item.left));
-    const candidates = items
-      .filter((item) => /^(?:1[0-3]|[1-9])$/.test(item.text) && item.x < firstDayLeft + 8)
-      .map((item) => ({ node: Number(item.text), y: item.y }))
-      .sort((a, b) => b.y - a.y);
-    const rows = [];
-    const seen = new Set();
-    candidates.forEach((item) => {
-      if (seen.has(item.node)) return;
-      seen.add(item.node);
-      rows.push(item);
-    });
-    return rows.sort((a, b) => a.node - b.node).length >= 6
-      ? rows.sort((a, b) => a.node - b.node).map((row) => ({ ...row })).sort((a, b) => a.node - b.node).sort((a, b) => b.y - a.y)
-      : [];
   }
 
   function pdfItemsToText(items) {
@@ -1458,141 +1367,6 @@
     const match = source.match(/^(?:星期|周)([一二三四五六日])/);
     if (!match) return 0;
     return "一二三四五六日".indexOf(match[1]) + 1;
-  }
-
-  function pdfItemsToLines(items) {
-    if (!items.length) return [];
-    const lines = [];
-    [...items]
-      .sort((a, b) => Math.abs(b.y - a.y) > 2 ? b.y - a.y : a.x - b.x)
-      .forEach((item) => {
-        const line = lines.find((entry) => Math.abs(entry.y - item.y) <= 3);
-        if (line) {
-          line.items.push(item);
-          line.y = (line.y + item.y) / 2;
-          line.x = Math.min(line.x, item.x);
-        } else {
-          lines.push({ y: item.y, x: item.x, items: [item] });
-        }
-      });
-    return lines
-      .sort((a, b) => b.y - a.y)
-      .map((line) => ({
-        x: line.x,
-        y: line.y,
-        text: cleanupImportLine(line.items.sort((a, b) => a.x - b.x).map((item) => item.text).join(" "))
-      }))
-      .filter((line) => line.text && !isHeaderLike(line.text) && !isLegendText(line.text));
-  }
-
-  function extractHduPdfCellRecords(items, dayColumns, pageNumber = 1) {
-    const headerYs = items.filter((item) => /星期|周/.test(item.text)).map((item) => item.y);
-    const headerBottom = Math.max(...dayColumns.map((day) => day.y || 0), ...headerYs) - 8;
-    return dayColumns
-      .filter((day) => day.day <= 5)
-      .flatMap((day) => {
-        const columnItems = items.filter((item) => item.x >= day.left && item.x < day.right && item.y < headerBottom);
-        return extractPdfColumnCellRecords(columnItems, day.day, pageNumber);
-      });
-  }
-
-  function extractPdfColumnCellRecords(items, day, pageNumber = 1) {
-    const lines = pdfItemsToLines(items);
-    const sectionEntries = lines
-      .map((line, index) => ({ line, index, section: sectionFromText(line.text) }))
-      .filter((entry) => entry.section);
-    return sectionEntries.map((entry, order) => {
-      const titleLines = pdfCourseTitleLinesBeforeSection(lines, entry.index);
-      const inlineName = inlineCourseName(entry.line.text);
-      const name = inlineName || cleanupField(titleLines.map((line) => line.text).join(""));
-      if (!name) return null;
-      const nextEntry = sectionEntries[order + 1];
-      const nextTitleLines = nextEntry ? pdfCourseTitleLinesBeforeSection(lines, nextEntry.index) : [];
-      const nextTitleIndex = nextTitleLines.length ? nextTitleLines[0].index : null;
-      const nextSectionIndex = nextEntry?.index ?? lines.length;
-      const detailEndIndex = nextTitleIndex !== null && nextTitleIndex > entry.index ? nextTitleIndex : nextSectionIndex;
-      const detailLines = lines.slice(entry.index, detailEndIndex);
-      const recordLines = [...(inlineName ? [] : titleLines), ...detailLines];
-      const text = recordLines.map((line) => line.text).join("\n");
-      return {
-        source: "hdu-pdf-cell",
-        page: pageNumber,
-        day,
-        start: clamp(entry.section.start, 1, 13),
-        end: clamp(entry.section.end, entry.section.start, 13),
-        name,
-        text,
-        lines: recordLines.map((line) => line.text),
-        bounds: pdfRecordBounds(recordLines)
-      };
-    }).filter(Boolean);
-  }
-
-  function parseHduPdfCellRecord(record) {
-    const text = cleanCourseText(record.text);
-    const weeks = weeksFromText(text);
-    if (!weeks?.length) return null;
-    const name = cleanupField(record.name || detectCourseName(record.lines || [], text));
-    if (!name || !isValidCourseNameLine(name)) return null;
-    return {
-      name,
-      day: record.day,
-      start: record.start,
-      end: record.end,
-      weeks,
-      room: detectRoom(record.lines || [], text),
-      teacher: detectTeacher(record.lines || [], text),
-      credit: detectCredit(text),
-      note: ""
-    };
-  }
-
-  function pdfCourseTitleLinesBeforeSection(lines, sectionIndex) {
-    const titleLines = [];
-    let lastY = lines[sectionIndex]?.y || 0;
-    for (let index = sectionIndex - 1; index >= 0 && titleLines.length < 4; index -= 1) {
-      const line = lines[index];
-      const suffix = pdfCourseTitleSuffix(line.text);
-      const titlePart = suffix || pdfCourseTitlePart(line.text);
-      if (!titlePart) break;
-      if (Math.abs(line.y - lastY) > 22) break;
-      titleLines.unshift({ ...line, index, text: titlePart });
-      lastY = line.y;
-    }
-    return titleLines;
-  }
-
-  function pdfRecordBounds(lines) {
-    if (!lines.length) return null;
-    const left = Math.min(...lines.map((line) => line.x || 0));
-    const top = Math.max(...lines.map((line) => line.y || 0));
-    const bottom = Math.min(...lines.map((line) => line.y || 0));
-    return { left, top, bottom };
-  }
-
-  function pdfCourseTitleSuffix(value) {
-    const source = cleanupImportLine(value);
-    return /^[）)]$/.test(source) ? source : "";
-  }
-
-  function pdfCourseTitlePart(value) {
-    const source = cleanupImportLine(value).replace(/^(?:星期|周)[一二三四五六日]\s*/, "");
-    if (!source || isPdfCourseDetailLine(source)) return "";
-    return isCourseNameCandidateLine(source, { allowShortName: true }) ? source : "";
-  }
-
-  function isPdfCourseDetailLine(value) {
-    const source = cleanCourseText(value);
-    return /^(?:[:：/]|分[:：]|时[:：]|学时[:：]|总学时[:：]|周学时[:：]|\d+(?:\.\d+)?$)/.test(source)
-      || /(?:校区|场地|地点|教师|老师|教学班|班组成|课程学时|理论学时|实践学时|实验学时|上机学时|周学时|总学时|学分|考核方式|选课备注|组成)/.test(source)
-      || /(?:星期|周)[一二三四五六日]/.test(source)
-      || sectionFromText(source)
-      || Boolean(weeksFromText(source));
-  }
-
-  function sectionFromPdfY(y, rowBounds) {
-    const row = rowBounds.find((item) => y <= item.top && y > item.bottom);
-    return row ? { start: row.node, end: row.node } : null;
   }
 
   function mergeImportedCourseSessions(courses) {
@@ -2417,7 +2191,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-4").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-5").catch(() => {});
     });
   }
 

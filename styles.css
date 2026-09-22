@@ -1410,7 +1410,7 @@ body {
 }
 /* Compact timetable scale. */
 :root {
-  --time-width: 56px;
+  --time-width: 48px;
   --cell-height: 84px;
 }
 
@@ -1438,12 +1438,12 @@ body {
 }
 
 .time-cell strong {
-  font-size: 22px !important;
+  font-size: 20px !important;
 }
 
 .time-cell span {
-  font-size: 14px !important;
-  line-height: 1.05 !important;
+  font-size: 13px !important;
+  line-height: 1.02 !important;
 }
 
 .course-card {
@@ -1462,26 +1462,26 @@ body {
 }
 
 .week-strip {
-  height: 68px !important;
+  height: 58px !important;
 }
 
 .month-cell {
-  font-size: 16px !important;
+  font-size: 14px !important;
 }
 
 .day-cell {
-  gap: 1px !important;
+  gap: 0 !important;
 }
 
 .day-cell strong {
-  font-size: 16px !important;
+  font-size: 15px !important;
 }
 
 .day-cell span {
-  min-width: 34px !important;
-  height: 34px !important;
-  border-radius: 12px !important;
-  font-size: 20px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  border-radius: 11px !important;
+  font-size: 18px !important;
 }
 
 
