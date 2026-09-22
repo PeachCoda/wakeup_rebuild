@@ -309,7 +309,7 @@ function sklRequest({ method = "GET", path, query, token, contentType, userAgent
   return new Promise((resolve, reject) => {
     const url = new URL(path, BASE_URL);
     for (const [key, value] of Object.entries(query || {})) {
-      if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
+      if (value !== undefined && value !== null && (value !== "" || key === "latitude" || key === "longitude")) url.searchParams.set(key, String(value));
     }
     const safeUserAgent = String(userAgent || "FakeUp/skl-proxy (+https://kb.c0d4.ink)").replace(/[\r\n]/g, " ").slice(0, 300);
     const headers = { Accept: "application/json, text/plain, */*", Referer: `${BASE_URL}/index.html`, "User-Agent": safeUserAgent, "skl-ticket": newTicket() };

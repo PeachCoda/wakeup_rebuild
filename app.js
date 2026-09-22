@@ -767,9 +767,11 @@
     if (elements.signInSubmitBtn) elements.signInSubmitBtn.disabled = false;
   }
 
-  function getSignInPosition() {
-    if (signInPositionCache && Date.now() - signInPositionCacheAt < 5 * 60 * 1000) return Promise.resolve(signInPositionCache);
-    if (!navigator.geolocation) return Promise.reject(new Error("当前浏览器不支持定位，无法直接签到"));
+  function emptySignInPosition() {
+    return { latitude: "", longitude: "" };
+  }
+
+  function readSignInPosition(options) {
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition((position) => {
         const coords = {
@@ -779,11 +781,28 @@
         signInPositionCache = coords;
         signInPositionCacheAt = Date.now();
         resolve(coords);
-      }, (error) => {
-        const message = error?.code === 1 ? "需要允许定位后才能签到" : "定位失败，请确认系统定位已开启";
-        reject(new Error(message));
-      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 120000 });
+      }, reject, options);
     });
+  }
+
+  async function getSignInPosition() {
+    if (signInPositionCache && Date.now() - signInPositionCacheAt < 10 * 60 * 1000) return signInPositionCache;
+    if (!navigator.geolocation) {
+      setSignInStatus("当前浏览器不支持定位，先尝试提交。", "warn");
+      return emptySignInPosition();
+    }
+    try {
+      return await readSignInPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 10 * 60 * 1000 });
+    } catch (firstError) {
+      if (firstError?.code === 1) throw new Error("需要允许定位后才能签到");
+      try {
+        return await readSignInPosition({ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+      } catch (secondError) {
+        if (secondError?.code === 1) throw new Error("需要允许定位后才能签到");
+        setSignInStatus("定位暂时没返回，先尝试提交。", "warn");
+        return emptySignInPosition();
+      }
+    }
   }
 
   function signInResultMessage(data) {
