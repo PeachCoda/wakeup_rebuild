@@ -1,0 +1,21 @@
+[Unit]
+Description=FakeUp SKL sign-in proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/kb.c0d4.ink
+ExecStart=/usr/bin/node /var/www/kb.c0d4.ink/server/skl-proxy.mjs
+Environment=PORT=8787
+Restart=on-failure
+RestartSec=3
+User=www-data
+Group=www-data
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

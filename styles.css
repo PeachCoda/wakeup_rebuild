@@ -2062,3 +2062,67 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Sign-in experiment controls. */
+.signin-status {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f4f7fb;
+  color: #5f6b7a;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.signin-status[data-tone="ok"] {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.signin-status[data-tone="warn"] {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.signin-status[data-tone="bad"] {
+  background: #fef2f2;
+  color: #b42318;
+}
+
+.signin-field {
+  display: grid;
+  gap: 6px;
+}
+
+.signin-field span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.signin-field input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 14px;
+  padding: 11px 12px;
+  background: #fff;
+  color: var(--text);
+  font: 15px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  outline: none;
+}
+
+.signin-field input:focus {
+  border-color: rgba(33, 126, 232, 0.46);
+  box-shadow: 0 0 0 3px rgba(33, 126, 232, 0.12);
+}
+
+.signin-actions-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 520px) {
+  .signin-actions-three {
+    grid-template-columns: 1fr;
+  }
+}

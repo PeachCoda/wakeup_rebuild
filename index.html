@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-18" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-19" />
   </head>
   <body>
     <div class="app-shell">
@@ -95,9 +95,19 @@
         <button class="icon-button" id="closeSignInBtn" type="button" aria-label="关闭">×</button>
       </header>
       <div class="signin-current" id="signinCurrentCourse">正在判断当前课程…</div>
-      <p class="signin-note">浏览器不能跨域接管上课啦的登录态、定位和阿里验证码。请先刷新钉钉登录态，再外部打开签到页输入密令。</p>
-      <div class="signin-actions signin-actions-two">
-        <button class="plain-button" id="signInLoginBtn" type="button">刷新登录态</button>
+      <div class="signin-status" id="signinStatus">正在检查签到后端…</div>
+      <label class="signin-field">
+        <span>上课啦 sessionId</span>
+        <input id="signInTokenInput" type="password" autocomplete="off" placeholder="实验用：粘贴 skl.hdu.edu.cn 的 localStorage.sessionId" />
+      </label>
+      <label class="signin-field">
+        <span>密令</span>
+        <input id="signInCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="老师给的签到密令" />
+      </label>
+      <p class="signin-note">这是基于 hdufuck/skl 思路的实验入口。当前先验证登录态和课程接口；正式签到仍需要官方阿里验证码产生的一次性参数，所以这里不会绕过验证码直接提交。</p>
+      <div class="signin-actions signin-actions-three">
+        <button class="plain-button" id="signInLoginBtn" type="button">打开登录页</button>
+        <button class="plain-button" id="signInVerifyBtn" type="button">校验登录态</button>
         <button class="primary-button" id="signInExternalBtn" type="button">打开签到页</button>
       </div>
     </section>
@@ -149,7 +159,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-48"></script>
+    <script src="./app.js?v=fakeup-pdf-49"></script>
   </body>
 </html>
 

@@ -26,6 +26,7 @@
   const fallbackStart = toISODate(startOfWeek(today));
   const signInLoginUrl = "https://skl.hdu.edu.cn/api/login/dingtalk/auth?index=&code=0&authCode=0&state=0";
   const signInUrl = "https://skl.hdu.edu.cn/#/sign/in";
+  const signInApiBase = "/api/signin";
 
   const elements = {
     scheduleList: document.querySelector("#scheduleList"),
@@ -61,8 +62,12 @@
     signinBackdrop: document.querySelector("#signinBackdrop"),
     signinPanel: document.querySelector("#signinPanel"),
     signinCurrentCourse: document.querySelector("#signinCurrentCourse"),
+    signinStatus: document.querySelector("#signinStatus"),
+    signInTokenInput: document.querySelector("#signInTokenInput"),
+    signInCodeInput: document.querySelector("#signInCodeInput"),
     closeSignInBtn: document.querySelector("#closeSignInBtn"),
     signInLoginBtn: document.querySelector("#signInLoginBtn"),
+    signInVerifyBtn: document.querySelector("#signInVerifyBtn"),
     signInExternalBtn: document.querySelector("#signInExternalBtn"),
     pdfDebugPanel: document.querySelector("#pdfDebugPanel"),
     pdfDebugText: document.querySelector("#pdfDebugText"),
@@ -522,6 +527,7 @@
     renderSignInCurrentCourse();
     elements.signinBackdrop.hidden = false;
     elements.signinPanel.hidden = false;
+    checkSignInBackend();
   }
 
   function closeSignInPanel() {
@@ -580,6 +586,53 @@
   function openExternalSignIn() {
     window.open(signInUrl, "_blank", "noopener");
     showToast("已打开签到页");
+  }
+
+  function setSignInStatus(message, tone = "idle") {
+    if (!elements.signinStatus) return;
+    elements.signinStatus.textContent = message;
+    elements.signinStatus.dataset.tone = tone;
+  }
+
+  async function checkSignInBackend() {
+    if (!elements.signinPanel || elements.signinPanel.hidden) return;
+    setSignInStatus("正在检查签到后端…");
+    try {
+      const response = await fetch(`${signInApiBase}/health`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      setSignInStatus(data?.message || "签到后端已连接，可校验上课啦登录态。", "ok");
+    } catch (error) {
+      setSignInStatus("签到后端还没有部署，当前只能打开上课啦官方签到页。", "warn");
+    }
+  }
+
+  async function verifySignInToken() {
+    const token = elements.signInTokenInput?.value.trim();
+    if (!token) {
+      showToast("请先粘贴上课啦 sessionId");
+      elements.signInTokenInput?.focus();
+      return;
+    }
+    setSignInStatus("正在校验登录态…");
+    try {
+      const response = await fetch(`${signInApiBase}/token/probe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.ok === false) {
+        throw new Error(data?.message || `HTTP ${response.status}`);
+      }
+      const userName = data?.user?.userName || data?.user?.id || "当前账号";
+      const courseCount = Number(data?.todayCourses?.length || 0);
+      setSignInStatus(`${userName} 登录态有效，今天上课啦返回 ${courseCount} 门课。`, "ok");
+      showToast("登录态有效");
+    } catch (error) {
+      setSignInStatus(error?.message || "登录态校验失败", "bad");
+      showToast("登录态校验失败");
+    }
   }
 
   function showCourseDetail(courseId, sessionIndex = 0) {
@@ -2276,6 +2329,7 @@
   elements.closeSignInBtn?.addEventListener("click", closeSignInPanel);
   elements.signinBackdrop?.addEventListener("click", closeSignInPanel);
   elements.signInLoginBtn?.addEventListener("click", openSignInLogin);
+  elements.signInVerifyBtn?.addEventListener("click", verifySignInToken);
   elements.signInExternalBtn?.addEventListener("click", openExternalSignIn);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
