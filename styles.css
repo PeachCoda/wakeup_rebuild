@@ -1826,3 +1826,37 @@ body {
 .week-picker-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
+
+/* Tune course text contrast and date header scale. */
+.course-card {
+  gap: 3px !important;
+}
+
+.course-card strong,
+.course-card span,
+.course-card.compact strong,
+.course-card.compact span {
+  color: var(--course-text) !important;
+  line-height: 1.16 !important;
+  font-weight: 520 !important;
+}
+
+.course-card strong {
+  font-weight: 580 !important;
+  margin-bottom: 2px !important;
+}
+
+.day-cell strong {
+  font-size: 13px !important;
+}
+
+.day-cell span {
+  min-width: 26px !important;
+  height: 26px !important;
+  border-radius: 9px !important;
+  font-size: 16px !important;
+}
+
+.month-cell {
+  font-size: 13px !important;
+}

@@ -309,7 +309,7 @@
       card.type = "button";
       card.style.setProperty("--course-color", item.course.color);
       card.style.setProperty("--course-bg", tintColor(item.course.color, item.isActive ? 0.76 : 0.88));
-      card.style.setProperty("--course-text", shadeColor(item.course.color, item.isActive ? 0.52 : 0.58));
+      card.style.setProperty("--course-text", shadeColor(item.course.color, item.isActive ? 0.42 : 0.52));
       const dayWidth = `(100% - var(--time-width)) / ${days.length}`;
       card.style.left = `calc(var(--time-width) + (${dayWidth}) * ${dayIndex} + (${dayWidth}) * ${item.laneIndex / item.laneCount} + ${gap}px)`;
       card.style.top = `${(item.start - 1) * schedule.cellHeight + gap}px`;
@@ -2005,7 +2005,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-11").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-12").catch(() => {});
     });
   }
 
