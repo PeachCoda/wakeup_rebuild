@@ -21,6 +21,7 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -45,6 +46,26 @@ textarea {
 
 button {
   cursor: pointer;
+}
+
+button:focus,
+[role="button"]:focus,
+.week-select-wrap:focus,
+.course-card:focus,
+.schedule-tab:focus,
+.today-item:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+.week-select-wrap:focus-visible,
+.course-card:focus-visible,
+.schedule-tab:focus-visible,
+.today-item:focus-visible {
+  outline: 2px solid rgba(25, 118, 223, 0.55);
+  outline-offset: 2px;
 }
 
 button:disabled {
