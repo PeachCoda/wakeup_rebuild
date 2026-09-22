@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-17" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-18" />
   </head>
   <body>
     <div class="app-shell">
@@ -95,13 +95,11 @@
         <button class="icon-button" id="closeSignInBtn" type="button" aria-label="关闭">×</button>
       </header>
       <div class="signin-current" id="signinCurrentCourse">正在判断当前课程…</div>
-      <p class="signin-note">先刷新钉钉登录态，再打开签到页输入密令。定位和提交仍由上课啦页面完成。</p>
-      <div class="signin-actions">
+      <p class="signin-note">浏览器不能跨域接管上课啦的登录态、定位和阿里验证码。请先刷新钉钉登录态，再外部打开签到页输入密令。</p>
+      <div class="signin-actions signin-actions-two">
         <button class="plain-button" id="signInLoginBtn" type="button">刷新登录态</button>
-        <button class="primary-button" id="signInInlineBtn" type="button">页内打开签到</button>
-        <button class="primary-button" id="signInExternalBtn" type="button">新窗口打开</button>
+        <button class="primary-button" id="signInExternalBtn" type="button">打开签到页</button>
       </div>
-      <iframe id="signInFrame" class="signin-frame" title="上课啦签到页" allow="geolocation; clipboard-read; clipboard-write" hidden></iframe>
     </section>
 
 
@@ -151,7 +149,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-47"></script>
+    <script src="./app.js?v=fakeup-pdf-48"></script>
   </body>
 </html>
 

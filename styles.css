@@ -2039,13 +2039,6 @@ body {
   padding-inline: 10px;
 }
 
-.signin-frame {
-  width: 100%;
-  height: min(56vh, 480px);
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  background: #fff;
-}
 
 @media (max-width: 520px) {
   .signin-panel {
@@ -2058,8 +2051,14 @@ body {
   .signin-actions {
     grid-template-columns: 1fr;
   }
+}
 
-  .signin-frame {
-    height: 58vh;
+.signin-actions-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 520px) {
+  .signin-actions-two {
+    grid-template-columns: 1fr;
   }
 }
