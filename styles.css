@@ -1906,3 +1906,16 @@ body {
 .course-card strong {
   font-weight: 560 !important;
 }
+
+/* Darker but uniform course card text. */
+.course-card strong,
+.course-card span,
+.course-card.compact strong,
+.course-card.compact span {
+  color: var(--course-text) !important;
+  font-weight: 650 !important;
+}
+
+.course-card strong {
+  font-weight: 650 !important;
+}
