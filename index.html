@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-20" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-21" />
   </head>
   <body>
     <div class="app-shell">
@@ -96,20 +96,26 @@
       </header>
       <div class="signin-current" id="signinCurrentCourse">正在判断当前课程…</div>
       <div class="signin-status" id="signinStatus">正在检查签到后端…</div>
-      <label class="signin-field">
-        <span>上课啦 sessionId</span>
-        <input id="signInTokenInput" type="password" autocomplete="off" placeholder="首次粘贴一次，之后会保存在本机" />
-      </label>
+      <div class="signin-login-grid">
+        <label class="signin-field">
+          <span>学号</span>
+          <input id="signInUsernameInput" inputmode="numeric" autocomplete="username" placeholder="第一次输入一次" />
+        </label>
+        <label class="signin-field">
+          <span>统一身份认证密码</span>
+          <input id="signInPasswordInput" type="password" autocomplete="current-password" placeholder="服务端加密保存" />
+        </label>
+      </div>
       <label class="signin-field">
         <span>密令</span>
         <input id="signInCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="老师给的签到密令" />
       </label>
-      <p class="signin-note">首次测试需要粘贴一次上课啦 sessionId；之后会保存在本机浏览器里自动复用。失效时重新打开上课啦登录页，再更新一次即可。</p>
+      <p class="signin-note">账号密码只用于服务端登录上课啦，前端只保留 HttpOnly 会话 cookie；服务端会加密保存凭据，用于登录态过期后自动刷新。</p>
       <div class="signin-actions signin-actions-four">
-        <button class="plain-button" id="signInLoginBtn" type="button">打开登录页</button>
-        <button class="plain-button" id="signInVerifyBtn" type="button">保存并校验</button>
-        <button class="plain-button" id="signInClearBtn" type="button">清除登录态</button>
-        <button class="primary-button" id="signInExternalBtn" type="button">打开签到页</button>
+        <button class="primary-button" id="signInAccountLoginBtn" type="button">登录并保存</button>
+        <button class="plain-button" id="signInAccountLogoutBtn" type="button">退出本机</button>
+        <button class="plain-button" id="signInAccountClearBtn" type="button">清除凭据</button>
+        <button class="plain-button" id="signInExternalBtn" type="button">打开签到页</button>
       </div>
     </section>
 
@@ -160,7 +166,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-50"></script>
+    <script src="./app.js?v=fakeup-pdf-51"></script>
   </body>
 </html>
 

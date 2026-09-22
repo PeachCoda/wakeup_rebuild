@@ -2137,3 +2137,16 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+.signin-login-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.3fr;
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .signin-login-grid {
+    grid-template-columns: 1fr;
+  }
+}

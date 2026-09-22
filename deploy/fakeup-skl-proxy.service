@@ -8,6 +8,8 @@ Type=simple
 WorkingDirectory=/var/www/kb.c0d4.ink
 ExecStart=/usr/bin/node /var/www/kb.c0d4.ink/server/skl-proxy.mjs
 Environment=PORT=8787
+Environment=FAKEUP_SKL_DATA_DIR=/var/lib/fakeup-skl
+StateDirectory=fakeup-skl
 Restart=on-failure
 RestartSec=3
 User=www-data
