@@ -2049,6 +2049,11 @@
       if (match[2]) hasLocalParity = true;
       weeks.push(...applyParity(match[1].split(/[,，、]/).map(Number), match[2]));
     }
+    const singlePattern = /(?:^|[^\d-])(?:第\s*)?(\d{1,2})\s*周\s*(?:[（(]\s*(单|双)\s*[）)])?/g;
+    while ((match = singlePattern.exec(source))) {
+      if (match[2]) hasLocalParity = true;
+      weeks.push(...applyParity([Number(match[1])], match[2]));
+    }
     if (!weeks.length) return null;
     if (!hasLocalParity && /单周|\(单\)|（单）/.test(source)) weeks = weeks.filter((week) => week % 2 === 1);
     if (!hasLocalParity && /双周|\(双\)|（双）/.test(source)) weeks = weeks.filter((week) => week % 2 === 0);
@@ -2395,7 +2400,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-2").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-3").catch(() => {});
     });
   }
 
