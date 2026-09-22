@@ -64,14 +64,14 @@
     signinPanel: document.querySelector("#signinPanel"),
     signinCurrentCourse: document.querySelector("#signinCurrentCourse"),
     signinStatus: document.querySelector("#signinStatus"),
+    signInLoginFields: document.querySelector("#signInLoginFields"),
+    signInCodeField: document.querySelector("#signInCodeField"),
     signInUsernameInput: document.querySelector("#signInUsernameInput"),
     signInPasswordInput: document.querySelector("#signInPasswordInput"),
     signInCodeInput: document.querySelector("#signInCodeInput"),
     closeSignInBtn: document.querySelector("#closeSignInBtn"),
     signInAccountLoginBtn: document.querySelector("#signInAccountLoginBtn"),
-    signInAccountLogoutBtn: document.querySelector("#signInAccountLogoutBtn"),
-    signInAccountClearBtn: document.querySelector("#signInAccountClearBtn"),
-    signInExternalBtn: document.querySelector("#signInExternalBtn"),
+    signInSubmitBtn: document.querySelector("#signInSubmitBtn"),
     pdfDebugPanel: document.querySelector("#pdfDebugPanel"),
     pdfDebugText: document.querySelector("#pdfDebugText"),
     closePdfDebugBtn: document.querySelector("#closePdfDebugBtn"),
@@ -598,6 +598,15 @@
     elements.signinStatus.dataset.tone = tone;
   }
 
+  function setSignInLoggedIn(loggedIn) {
+    if (elements.signinPanel) elements.signinPanel.dataset.loggedIn = loggedIn ? "true" : "false";
+    if (elements.signInLoginFields) elements.signInLoginFields.hidden = Boolean(loggedIn);
+    if (elements.signInAccountLoginBtn) elements.signInAccountLoginBtn.hidden = Boolean(loggedIn);
+    if (elements.signInCodeField) elements.signInCodeField.hidden = !loggedIn;
+    if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = !loggedIn;
+    if (loggedIn) requestAnimationFrame(() => elements.signInCodeInput?.focus());
+  }
+
   async function checkSignInBackend() {
     if (!elements.signinPanel || elements.signinPanel.hidden) return false;
     setSignInStatus("正在检查签到后端…");
@@ -633,11 +642,13 @@
 
   function renderAccountStatus(data) {
     if (!data?.loggedIn) {
-      setSignInStatus("还没有登录上课啦。第一次输入学号密码，之后会自动复用服务端保存的登录态。", "warn");
+      setSignInLoggedIn(false);
+      setSignInStatus("第一次使用需要先登录。", "warn");
       return;
     }
     const userName = data?.user?.userName || data?.user?.id || "当前账号";
     const courseCount = Number(data?.todayCourses?.length || 0);
+    setSignInLoggedIn(true);
     setSignInStatus(`${userName} 已登录，今天上课啦返回 ${courseCount} 门课。`, "ok");
   }
 
@@ -649,6 +660,7 @@
       renderAccountStatus(data);
       return data;
     } catch (error) {
+      setSignInLoggedIn(false);
       setSignInStatus(error?.message || "读取上课啦账号状态失败", "bad");
       if (!options.quiet) showToast("读取登录态失败");
       return null;
@@ -682,24 +694,33 @@
     }
   }
 
-  async function logoutSignInAccount() {
-    try {
-      await fetch(`${signInApiBase}/account/logout`, { method: "POST" });
-      setSignInStatus("已退出本机登录，会保留服务端加密凭据。", "warn");
-      showToast("已退出");
-    } catch (error) {
-      setSignInStatus("退出失败", "bad");
+  async function submitSignInCode() {
+    const code = elements.signInCodeInput?.value.trim() || "";
+    if (!code) {
+      showToast("请输入密令");
+      elements.signInCodeInput?.focus();
+      return;
     }
-  }
-
-  async function clearSignInAccount() {
+    setSignInStatus("正在提交密令…");
     try {
-      await fetch(`${signInApiBase}/account/clear`, { method: "POST" });
-      if (elements.signInPasswordInput) elements.signInPasswordInput.value = "";
-      setSignInStatus("已清除服务端保存的上课啦凭据。", "warn");
-      showToast("已清除凭据");
+      const response = await fetch(`${signInApiBase}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data?.ok) {
+        setSignInStatus("签到成功。", "ok");
+        showToast("签到成功");
+        if (elements.signInCodeInput) elements.signInCodeInput.value = "";
+        return;
+      }
+      const message = data?.message || "签到失败";
+      setSignInStatus(message, data?.code === "captcha_required" ? "warn" : "bad");
+      showToast(message);
     } catch (error) {
-      setSignInStatus("清除凭据失败", "bad");
+      setSignInStatus(error?.message || "提交失败", "bad");
+      showToast("提交失败");
     }
   }
 
@@ -2397,9 +2418,10 @@
   elements.closeSignInBtn?.addEventListener("click", closeSignInPanel);
   elements.signinBackdrop?.addEventListener("click", closeSignInPanel);
   elements.signInAccountLoginBtn?.addEventListener("click", loginSignInAccount);
-  elements.signInAccountLogoutBtn?.addEventListener("click", logoutSignInAccount);
-  elements.signInAccountClearBtn?.addEventListener("click", clearSignInAccount);
-  elements.signInExternalBtn?.addEventListener("click", openExternalSignIn);
+  elements.signInSubmitBtn?.addEventListener("click", submitSignInCode);
+  elements.signInCodeInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") submitSignInCode();
+  });
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
   elements.openImportBtn.addEventListener("click", () => {

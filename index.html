@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-21" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-23" />
   </head>
   <body>
     <div class="app-shell">
@@ -96,26 +96,23 @@
       </header>
       <div class="signin-current" id="signinCurrentCourse">正在判断当前课程…</div>
       <div class="signin-status" id="signinStatus">正在检查签到后端…</div>
-      <div class="signin-login-grid">
+      <div class="signin-login-grid" id="signInLoginFields">
         <label class="signin-field">
           <span>学号</span>
           <input id="signInUsernameInput" inputmode="numeric" autocomplete="username" placeholder="第一次输入一次" />
         </label>
         <label class="signin-field">
-          <span>统一身份认证密码</span>
-          <input id="signInPasswordInput" type="password" autocomplete="current-password" placeholder="服务端加密保存" />
+          <span>密码</span>
+          <input id="signInPasswordInput" type="password" autocomplete="current-password" placeholder="统一身份认证密码" />
         </label>
       </div>
-      <label class="signin-field">
+      <label class="signin-field" id="signInCodeField" hidden>
         <span>密令</span>
         <input id="signInCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="老师给的签到密令" />
       </label>
-      <p class="signin-note">账号密码只用于服务端登录上课啦，前端只保留 HttpOnly 会话 cookie；服务端会加密保存凭据，用于登录态过期后自动刷新。</p>
-      <div class="signin-actions signin-actions-four">
+      <div class="signin-actions signin-actions-single">
         <button class="primary-button" id="signInAccountLoginBtn" type="button">登录并保存</button>
-        <button class="plain-button" id="signInAccountLogoutBtn" type="button">退出本机</button>
-        <button class="plain-button" id="signInAccountClearBtn" type="button">清除凭据</button>
-        <button class="plain-button" id="signInExternalBtn" type="button">打开签到页</button>
+        <button class="primary-button" id="signInSubmitBtn" type="button" hidden>提交密令</button>
       </div>
     </section>
 
@@ -166,7 +163,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-51"></script>
+    <script src="./app.js?v=fakeup-pdf-53"></script>
   </body>
 </html>
 

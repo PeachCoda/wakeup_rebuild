@@ -2150,3 +2150,14 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+.signin-actions-single {
+  grid-template-columns: 1fr;
+}
+
+.signin-login-grid[hidden],
+.signin-field[hidden],
+.signin-actions button[hidden] {
+  display: none !important;
+}
