@@ -897,7 +897,7 @@
     }).promise;
     const courses = [];
     const cellRecords = [];
-    const layout = { transpose: null, dayColumns: null, listDay: 1 };
+    const layout = { transpose: null, dayColumns: null, listDay: 1, listStart: null, listEnd: null };
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const result = await parseHduPdfPage(page, layout, pageNumber, pdf.numPages);
@@ -1130,6 +1130,8 @@
       const section = listSectionToken(item.text);
       if (section) {
         finish();
+        layout.listStart = section.start;
+        layout.listEnd = section.end;
         active = {
           day: currentDay,
           start: section.start,
@@ -1139,9 +1141,19 @@
         };
         return;
       }
-      if (!active) return;
       const courseName = isCourseNameCandidateLine(item.text, { allowShortName: true }) ? cleanupField(item.text) : "";
       const nextText = cleanupImportLine(items[index + 1]?.text || "");
+      if (!active && courseName && /周数\s*[:：]/.test(nextText) && layout.listStart && layout.listEnd) {
+        active = {
+          day: currentDay,
+          start: layout.listStart,
+          end: layout.listEnd,
+          name: courseName,
+          lines: []
+        };
+        return;
+      }
+      if (!active) return;
       if (courseName && /周数\s*[:：]/.test(nextText)) {
         if (active.name && active.lines.length) {
           const previous = active;
@@ -1166,7 +1178,12 @@
     });
     finish();
     const parsed = records.map((record) => parseHduPdfStreamRecord(record)).filter(Boolean);
-    if (parsed.length) layout.listDay = parsed[parsed.length - 1].day;
+    if (parsed.length) {
+      const last = parsed[parsed.length - 1];
+      layout.listDay = last.day;
+      layout.listStart = last.start;
+      layout.listEnd = last.end;
+    }
     return parsed;
   }
 
@@ -2400,7 +2417,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-3").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-4").catch(() => {});
     });
   }
 
