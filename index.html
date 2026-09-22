@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-19" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-20" />
   </head>
   <body>
     <div class="app-shell">
@@ -98,16 +98,17 @@
       <div class="signin-status" id="signinStatus">正在检查签到后端…</div>
       <label class="signin-field">
         <span>上课啦 sessionId</span>
-        <input id="signInTokenInput" type="password" autocomplete="off" placeholder="实验用：粘贴 skl.hdu.edu.cn 的 localStorage.sessionId" />
+        <input id="signInTokenInput" type="password" autocomplete="off" placeholder="首次粘贴一次，之后会保存在本机" />
       </label>
       <label class="signin-field">
         <span>密令</span>
         <input id="signInCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="老师给的签到密令" />
       </label>
-      <p class="signin-note">这是基于 hdufuck/skl 思路的实验入口。当前先验证登录态和课程接口；正式签到仍需要官方阿里验证码产生的一次性参数，所以这里不会绕过验证码直接提交。</p>
-      <div class="signin-actions signin-actions-three">
+      <p class="signin-note">首次测试需要粘贴一次上课啦 sessionId；之后会保存在本机浏览器里自动复用。失效时重新打开上课啦登录页，再更新一次即可。</p>
+      <div class="signin-actions signin-actions-four">
         <button class="plain-button" id="signInLoginBtn" type="button">打开登录页</button>
-        <button class="plain-button" id="signInVerifyBtn" type="button">校验登录态</button>
+        <button class="plain-button" id="signInVerifyBtn" type="button">保存并校验</button>
+        <button class="plain-button" id="signInClearBtn" type="button">清除登录态</button>
         <button class="primary-button" id="signInExternalBtn" type="button">打开签到页</button>
       </div>
     </section>
@@ -159,7 +160,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-49"></script>
+    <script src="./app.js?v=fakeup-pdf-50"></script>
   </body>
 </html>
 

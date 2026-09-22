@@ -2,6 +2,7 @@
   "use strict";
 
   const storageKey = "clean-schedule-state-v2";
+  const signInTokenStorageKey = "fakeup-skl-session-token-v1";
   const dayNames = ["一", "二", "三", "四", "五", "六", "日"];
   const termWeeks = 17;
   const oldPalette = ["#1aa6a6", "#258bd2", "#d48a35", "#7c58d9", "#e86852", "#2fa56f", "#c15ba5", "#5b8def", "#c47f2c", "#15a3c7", "#df5f8f", "#6d8f28"];
@@ -68,6 +69,7 @@
     closeSignInBtn: document.querySelector("#closeSignInBtn"),
     signInLoginBtn: document.querySelector("#signInLoginBtn"),
     signInVerifyBtn: document.querySelector("#signInVerifyBtn"),
+    signInClearBtn: document.querySelector("#signInClearBtn"),
     signInExternalBtn: document.querySelector("#signInExternalBtn"),
     pdfDebugPanel: document.querySelector("#pdfDebugPanel"),
     pdfDebugText: document.querySelector("#pdfDebugText"),
@@ -525,9 +527,12 @@
   function openSignInPanel() {
     closeTopbarMenu();
     renderSignInCurrentCourse();
+    loadSavedSignInToken();
     elements.signinBackdrop.hidden = false;
     elements.signinPanel.hidden = false;
-    checkSignInBackend();
+    checkSignInBackend().then(() => {
+      if (elements.signInTokenInput?.value.trim()) verifySignInToken({ quiet: true });
+    });
   }
 
   function closeSignInPanel() {
@@ -595,25 +600,57 @@
   }
 
   async function checkSignInBackend() {
-    if (!elements.signinPanel || elements.signinPanel.hidden) return;
+    if (!elements.signinPanel || elements.signinPanel.hidden) return false;
     setSignInStatus("正在检查签到后端…");
     try {
       const response = await fetch(`${signInApiBase}/health`, { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       setSignInStatus(data?.message || "签到后端已连接，可校验上课啦登录态。", "ok");
+      return true;
     } catch (error) {
       setSignInStatus("签到后端还没有部署，当前只能打开上课啦官方签到页。", "warn");
+      return false;
     }
   }
 
-  async function verifySignInToken() {
+  function loadSavedSignInToken() {
+    if (!elements.signInTokenInput) return;
+    try {
+      const token = localStorage.getItem(signInTokenStorageKey) || "";
+      if (token && !elements.signInTokenInput.value) elements.signInTokenInput.value = token;
+    } catch (error) {
+      console.warn("读取上课啦登录态失败。", error);
+    }
+  }
+
+  function saveSignInToken(token) {
+    try {
+      localStorage.setItem(signInTokenStorageKey, token);
+    } catch (error) {
+      console.warn("保存上课啦登录态失败。", error);
+    }
+  }
+
+  function clearSignInToken() {
+    try {
+      localStorage.removeItem(signInTokenStorageKey);
+    } catch (error) {
+      console.warn("清除上课啦登录态失败。", error);
+    }
+    if (elements.signInTokenInput) elements.signInTokenInput.value = "";
+    setSignInStatus("已清除本机保存的上课啦 sessionId。", "warn");
+    showToast("已清除登录态");
+  }
+
+  async function verifySignInToken(options = {}) {
     const token = elements.signInTokenInput?.value.trim();
     if (!token) {
       showToast("请先粘贴上课啦 sessionId");
       elements.signInTokenInput?.focus();
       return;
     }
+    saveSignInToken(token);
     setSignInStatus("正在校验登录态…");
     try {
       const response = await fetch(`${signInApiBase}/token/probe`, {
@@ -628,10 +665,10 @@
       const userName = data?.user?.userName || data?.user?.id || "当前账号";
       const courseCount = Number(data?.todayCourses?.length || 0);
       setSignInStatus(`${userName} 登录态有效，今天上课啦返回 ${courseCount} 门课。`, "ok");
-      showToast("登录态有效");
+      if (!options.quiet) showToast("登录态已保存");
     } catch (error) {
-      setSignInStatus(error?.message || "登录态校验失败", "bad");
-      showToast("登录态校验失败");
+      setSignInStatus(`${error?.message || "登录态校验失败"}。请重新打开上课啦登录页，再更新 sessionId。`, "bad");
+      if (!options.quiet) showToast("登录态校验失败");
     }
   }
 
@@ -2329,7 +2366,8 @@
   elements.closeSignInBtn?.addEventListener("click", closeSignInPanel);
   elements.signinBackdrop?.addEventListener("click", closeSignInPanel);
   elements.signInLoginBtn?.addEventListener("click", openSignInLogin);
-  elements.signInVerifyBtn?.addEventListener("click", verifySignInToken);
+  elements.signInVerifyBtn?.addEventListener("click", () => verifySignInToken());
+  elements.signInClearBtn?.addEventListener("click", clearSignInToken);
   elements.signInExternalBtn?.addEventListener("click", openExternalSignIn);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
