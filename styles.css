@@ -2677,16 +2677,34 @@ body {
   display: none !important;
 }
 
-/* Custom schedule background. Use a separate fixed layer to avoid mobile layout bugs from huge data URLs in layout containers. */
+/* Custom schedule background. */
 .page-background {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-size: cover;
-  background-position: center;
+  overflow: hidden;
   opacity: 0;
   transition: opacity 0.18s ease;
+}
+
+.page-bg-blur,
+.page-bg-main {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.page-bg-blur {
+  inset: -34px;
+  background-size: cover;
+  filter: blur(24px) saturate(1.08);
+  transform: scale(1.04);
+}
+
+.page-bg-main {
+  background-size: contain;
 }
 
 .app-shell {
@@ -2695,37 +2713,35 @@ body {
 }
 
 html.has-custom-bg .page-background {
-  opacity: 1;
+  opacity: var(--bg-strength, 0.7);
 }
 
 html.has-custom-bg .app-shell {
-  background-color: rgba(255, 255, 255, 0.68) !important;
-  background-size: cover;
-  background-position: center;
+  background-color: rgba(255, 255, 255, var(--bg-shell-alpha, 0.64)) !important;
 }
 
 html.has-custom-bg .main {
-  background: rgba(255, 255, 255, 0.48) !important;
+  background: rgba(255, 255, 255, var(--bg-panel-alpha, 0.7)) !important;
 }
 
 html.has-custom-bg .topbar,
 html.has-custom-bg .week-strip {
-  background: rgba(255, 255, 255, 0.78) !important;
+  background: rgba(255, 255, 255, var(--bg-panel-alpha, 0.7)) !important;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
 
 html.has-custom-bg .timetable-wrap {
-  background: rgba(255, 255, 255, 0.22) !important;
+  background: rgba(255, 255, 255, calc(var(--bg-panel-alpha, 0.7) - 0.28)) !important;
 }
 
 html.has-custom-bg .timetable {
-  background: rgba(255, 255, 255, 0.20) !important;
+  background: rgba(255, 255, 255, calc(var(--bg-panel-alpha, 0.7) - 0.34)) !important;
 }
 
 html.has-custom-bg .time-cell,
 html.has-custom-bg .grid-cell {
-  background-color: rgba(255, 255, 255, 0.10) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 html.has-custom-bg .course-card {
@@ -2748,4 +2764,125 @@ html.has-custom-bg .course-card {
 .timetable {
   position: relative;
   z-index: 1;
+}
+
+/* Background settings panel. */
+.background-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  background: rgba(15, 23, 42, 0.22);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.background-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 190;
+  width: min(420px, calc(100vw - 48px));
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(245, 253, 255, 0.72));
+  box-shadow: 0 22px 70px rgba(24, 64, 86, 0.2);
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(22px) saturate(1.12);
+  -webkit-backdrop-filter: blur(22px) saturate(1.12);
+}
+
+.background-backdrop[hidden],
+.background-panel[hidden] {
+  display: none !important;
+}
+
+.background-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.background-head h3 {
+  margin: 2px 0 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.background-preview {
+  min-height: 132px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.54);
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.background-preview::before,
+.background-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--preview-bg);
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.background-preview::before {
+  inset: -22px;
+  background-size: cover;
+  filter: blur(16px) saturate(1.08);
+}
+
+.background-preview::after {
+  background-size: contain;
+}
+
+.background-preview.empty::before,
+.background-preview.empty::after {
+  display: none;
+}
+
+.background-preview span {
+  position: relative;
+  z-index: 1;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.background-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.background-pick {
+  cursor: pointer;
+}
+
+.background-range {
+  display: grid;
+  gap: 8px;
+}
+
+.background-range span {
+  display: flex;
+  justify-content: space-between;
+  color: #5f6b7a;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.background-range input {
+  width: 100%;
+  accent-color: var(--accent);
 }

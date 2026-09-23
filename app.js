@@ -44,6 +44,8 @@
     timetable: document.querySelector("#timetable"),
     appShell: document.querySelector(".app-shell"),
     pageBackground: document.querySelector("#pageBackground"),
+    pageBackgroundBlur: document.querySelector("#pageBackgroundBlur"),
+    pageBackgroundMain: document.querySelector("#pageBackgroundMain"),
     prevWeekBtn: document.querySelector("#prevWeekBtn"),
     nextWeekBtn: document.querySelector("#nextWeekBtn"),
     currentWeekBtn: document.querySelector("#currentWeekBtn"),
@@ -54,6 +56,13 @@
     openAccountBtn: document.querySelector("#openAccountBtn"),
     syncSklScheduleBtn: document.querySelector("#syncSklScheduleBtn"),
     exportImageBtn: document.querySelector("#exportImageBtn"),
+    openBackgroundBtn: document.querySelector("#openBackgroundBtn"),
+    backgroundBackdrop: document.querySelector("#backgroundBackdrop"),
+    backgroundPanel: document.querySelector("#backgroundPanel"),
+    backgroundPreview: document.querySelector("#backgroundPreview"),
+    backgroundOpacityInput: document.querySelector("#backgroundOpacityInput"),
+    backgroundOpacityValue: document.querySelector("#backgroundOpacityValue"),
+    closeBackgroundBtn: document.querySelector("#closeBackgroundBtn"),
     backgroundInput: document.querySelector("#backgroundInput"),
     clearBackgroundBtn: document.querySelector("#clearBackgroundBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
@@ -114,6 +123,7 @@
           showOtherWeek: true,
           showTime: true,
           backgroundImage: "",
+          backgroundOpacity: 70,
           timeTable: cloneDefaultTimeTable(13),
           courses: []
         }
@@ -148,6 +158,7 @@
         showOtherWeek: schedule.showOtherWeek !== false,
         showTime: schedule.showTime !== false,
         backgroundImage: typeof schedule.backgroundImage === "string" ? schedule.backgroundImage : "",
+        backgroundOpacity: clamp(Number(schedule.backgroundOpacity) || 70, 20, 100),
         timeTable: cloneDefaultTimeTable(13),
         courses: Array.isArray(schedule.courses) ? schedule.courses.map(normalizeCourse).filter(Boolean) : []
       }))
@@ -241,13 +252,40 @@
   function applyScheduleBackground(schedule) {
     const value = schedule?.backgroundImage || "";
     const image = value ? `url(${JSON.stringify(value)})` : "";
-    if (elements.pageBackground) {
-      elements.pageBackground.style.backgroundImage = image;
-    }
-    if (elements.appShell) {
-      elements.appShell.style.backgroundImage = value ? `linear-gradient(rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.34)), ${image}` : "";
-    }
+    const opacity = clamp(Number(schedule?.backgroundOpacity) || 70, 20, 100);
+    const strength = opacity / 100;
+    document.documentElement.style.setProperty("--bg-strength", String(strength));
+    document.documentElement.style.setProperty("--bg-shell-alpha", String((0.86 - strength * 0.32).toFixed(2)));
+    document.documentElement.style.setProperty("--bg-panel-alpha", String((0.9 - strength * 0.28).toFixed(2)));
+    if (elements.pageBackgroundBlur) elements.pageBackgroundBlur.style.backgroundImage = image;
+    if (elements.pageBackgroundMain) elements.pageBackgroundMain.style.backgroundImage = image;
+    if (elements.appShell) elements.appShell.style.backgroundImage = "";
+    updateBackgroundSettingsUi(schedule);
     document.documentElement.classList.toggle("has-custom-bg", Boolean(value));
+  }
+
+  function updateBackgroundSettingsUi(schedule = currentSchedule()) {
+    const opacity = clamp(Number(schedule?.backgroundOpacity) || 70, 20, 100);
+    if (elements.backgroundOpacityInput) elements.backgroundOpacityInput.value = String(opacity);
+    if (elements.backgroundOpacityValue) elements.backgroundOpacityValue.textContent = `${opacity}%`;
+    if (elements.backgroundPreview) {
+      const image = schedule?.backgroundImage ? `url(${JSON.stringify(schedule.backgroundImage)})` : "";
+      elements.backgroundPreview.classList.toggle("empty", !image);
+      elements.backgroundPreview.style.setProperty("--preview-bg", image || "none");
+      elements.backgroundPreview.innerHTML = `<span>${image ? "模糊铺底 · 完整显示" : "还没有背景图片"}</span>`;
+    }
+  }
+
+  function openBackgroundPanel() {
+    closeTopbarMenu();
+    updateBackgroundSettingsUi();
+    elements.backgroundBackdrop.hidden = false;
+    elements.backgroundPanel.hidden = false;
+  }
+
+  function closeBackgroundPanel() {
+    if (elements.backgroundBackdrop) elements.backgroundBackdrop.hidden = true;
+    if (elements.backgroundPanel) elements.backgroundPanel.hidden = true;
   }
 
   function render() {
@@ -1539,12 +1577,19 @@
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
     const backgroundImage = schedule.backgroundImage ? await loadCanvasImage(schedule.backgroundImage).catch(() => null) : null;
+    const backgroundOpacity = clamp(Number(schedule.backgroundOpacity) || 70, 20, 100) / 100;
     if (backgroundImage) {
-      drawImageCover(ctx, backgroundImage, 0, 0, width, height);
-      ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+      ctx.save();
+      ctx.globalAlpha = backgroundOpacity;
+      ctx.filter = "blur(24px)";
+      drawImageCover(ctx, backgroundImage, -36, -36, width + 72, height + 72);
+      ctx.filter = "none";
+      drawImageContain(ctx, backgroundImage, 0, 0, width, height);
+      ctx.restore();
+      ctx.fillStyle = `rgba(255, 255, 255, ${(0.74 - backgroundOpacity * 0.26).toFixed(2)})`;
       ctx.fillRect(0, 0, width, height);
     }
-    roundRect(ctx, 12, 12, width - 24, height - 24, 28, backgroundImage ? "rgba(255, 255, 255, 0.74)" : "#ffffff");
+    roundRect(ctx, 12, 12, width - 24, height - 24, 28, backgroundImage ? `rgba(255, 255, 255, ${(0.82 - backgroundOpacity * 0.28).toFixed(2)})` : "#ffffff");
 
     ctx.fillStyle = "#1f2937";
     ctx.font = `600 46px ${fontFamily}`;
@@ -1651,6 +1696,15 @@
     ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
   }
 
+  function drawImageContain(ctx, image, x, y, width, height) {
+    const scale = Math.min(width / image.width, height / image.height);
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    const drawX = x + (width - drawWidth) / 2;
+    const drawY = y + (height - drawHeight) / 2;
+    ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+  }
+
   function resizeBackgroundImage(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1692,6 +1746,7 @@
       saveState();
       applyScheduleBackground(schedule);
       render();
+      openBackgroundPanel();
       showToast("背景已替换");
     } catch (error) {
       console.warn("替换背景失败。", error);
@@ -1707,6 +1762,13 @@
     closeTopbarMenu();
     render();
     showToast("背景已清除");
+  }
+
+  function updateBackgroundOpacity() {
+    const schedule = currentSchedule();
+    schedule.backgroundOpacity = clamp(Number(elements.backgroundOpacityInput?.value) || 70, 20, 100);
+    saveState();
+    applyScheduleBackground(schedule);
   }
 
   function formatWeekSubtitle(schedule, weekStart) {
@@ -1866,6 +1928,10 @@
   elements.signinPanel?.addEventListener("keydown", handleSignInPanelKeydown);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
+  elements.openBackgroundBtn?.addEventListener("click", openBackgroundPanel);
+  elements.closeBackgroundBtn?.addEventListener("click", closeBackgroundPanel);
+  elements.backgroundBackdrop?.addEventListener("click", closeBackgroundPanel);
+  elements.backgroundOpacityInput?.addEventListener("input", updateBackgroundOpacity);
   elements.backgroundInput?.addEventListener("change", handleBackgroundInputChange);
   elements.clearBackgroundBtn?.addEventListener("click", clearBackgroundImage);
   elements.newScheduleBtn.addEventListener("click", createNewSchedule);
@@ -1880,7 +1946,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-30").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-31").catch(() => {});
     });
   }
 
