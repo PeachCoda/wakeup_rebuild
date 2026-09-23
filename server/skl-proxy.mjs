@@ -462,6 +462,58 @@ function toSectionNumber(value) {
   return match ? Number(match[0]) : 0;
 }
 
+function uniqueSortedNumbers(values) {
+  return Array.from(new Set(values.map(Number).filter((value) => Number.isFinite(value)))).sort((a, b) => a - b);
+}
+
+function rangeNumbers(start, end) {
+  const from = Math.max(1, Math.min(Number(start), Number(end)));
+  const to = Math.max(Number(start), Number(end));
+  return Array.from({ length: Math.max(0, to - from + 1) }, (_, index) => from + index);
+}
+
+function applyWeekPeriod(weeks, period) {
+  const text = String(period || "");
+  if (/单/.test(text)) return weeks.filter((week) => week % 2 === 1);
+  if (/双/.test(text)) return weeks.filter((week) => week % 2 === 0);
+  return weeks;
+}
+
+function weeksFromText(value) {
+  const source = toCleanString(value);
+  const weeks = [];
+  let match;
+  const rangePattern = /(\d{1,2})\s*(?:[-~至到])\s*(\d{1,2})\s*周\s*(?:[（(]\s*(单|双)\s*[）)])?/g;
+  while ((match = rangePattern.exec(source))) weeks.push(...applyWeekPeriod(rangeNumbers(Number(match[1]), Number(match[2])), match[3]));
+  const listPattern = /((?:\d{1,2}\s*[,，、]\s*)+\d{1,2})\s*周\s*(?:[（(]\s*(单|双)\s*[）)])?/g;
+  while ((match = listPattern.exec(source))) weeks.push(...applyWeekPeriod(match[1].split(/[,，、]/).map(Number), match[2]));
+  const bracePattern = /[{｛]([^}｝]*周[^}｝]*)[}｝]/g;
+  while ((match = bracePattern.exec(source))) weeks.push(...weeksFromText(match[1]));
+  return uniqueSortedNumbers(weeks).filter((week) => week >= 1 && week <= 25);
+}
+
+function weeksFromSklCourse(raw, fallbackWeek) {
+  const arrayValue = pickField(raw, ["weeks", "Weeks", "weekList", "WeekList", "week", "Week"]);
+  if (Array.isArray(arrayValue)) return uniqueSortedNumbers(arrayValue).filter((week) => week >= 1 && week <= 25);
+  const startWeek = toSectionNumber(pickField(raw, ["startWeek", "StartWeek", "weekStart", "WeekStart", "beginWeek", "BeginWeek"]));
+  const endWeek = toSectionNumber(pickField(raw, ["endWeek", "EndWeek", "weekEnd", "WeekEnd", "finishWeek", "FinishWeek"]));
+  const period = pickField(raw, ["period", "Period", "weekType", "WeekType", "singleDoubleWeek"]);
+  if (startWeek && endWeek) return applyWeekPeriod(rangeNumbers(startWeek, endWeek), period).filter((week) => week >= 1 && week <= 25);
+  const schemaWeeks = weeksFromText(pickField(raw, ["courseSchema", "CourseSchema", "classTime", "ClassTime", "timeText"]));
+  if (schemaWeeks.length) return applyWeekPeriod(schemaWeeks, period);
+  const rawWeeks = weeksFromText(arrayValue);
+  if (rawWeeks.length) return applyWeekPeriod(rawWeeks, period);
+  return [fallbackWeek];
+}
+
+function normalizeCredit(value) {
+  if (value === undefined || value === null || value === "") return "";
+  const text = String(value).trim();
+  const match = text.match(/\d+(?:\.\d+)?/);
+  if (!match) return "";
+  return match[0].replace(/\.0$/, "");
+}
+
 function courseListFromSklPayload(payload) {
   if (Array.isArray(payload)) return payload;
   if (!payload || typeof payload !== "object") return [];
@@ -470,14 +522,20 @@ function courseListFromSklPayload(payload) {
 }
 
 function normalizeSklCourse(raw, date, week) {
-  const name = toCleanString(pickField(raw, ["courseName", "name", "kcmc", "className", "title"]));
+  const name = toCleanString(pickField(raw, ["courseName", "CourseName", "name", "Name", "kcmc", "className", "ClassName", "title"]));
   if (!name) return null;
-  const room = toCleanString(pickField(raw, ["classRoom", "room", "place", "location", "address", "skdd"]));
-  const teacher = toCleanString(pickField(raw, ["teacherName", "teacher", "teacherNames", "teacher_name", "jsxm"]));
-  let start = toSectionNumber(pickField(raw, ["startSection", "startNode", "beginSection", "sectionStart", "beginNode", "start", "jcStart"]));
-  let end = toSectionNumber(pickField(raw, ["endSection", "endNode", "finishSection", "sectionEnd", "end", "jcEnd"]));
-  const rangeSource = toCleanString(pickField(raw, ["section", "sections", "classSection", "jc", "period", "time"]));
-  const rangeMatch = rangeSource.match(/(\d+)\s*(?:[-~至]|到)\s*(\d+)/);
+  const room = toCleanString(pickField(raw, ["classRoom", "ClassRoom", "classroom", "Classroom", "room", "place", "location", "address", "skdd"]));
+  const teacher = toCleanString(pickField(raw, ["teacherName", "TeacherName", "teacher", "Teacher", "teacherNames", "Teachers", "teacher_name", "jsxm"]));
+  let start = toSectionNumber(pickField(raw, ["startSection", "StartSection", "startNode", "StartNode", "beginSection", "sectionStart", "beginNode", "start", "jcStart"]));
+  let end = toSectionNumber(pickField(raw, ["endSection", "EndSection", "endNode", "EndNode", "finishSection", "sectionEnd", "end", "jcEnd"]));
+  const sectionArray = pickField(raw, ["section", "Section", "sections", "Sections"]);
+  if ((!start || !end) && Array.isArray(sectionArray) && sectionArray.length) {
+    const sections = uniqueSortedNumbers(sectionArray);
+    start = start || sections[0];
+    end = end || sections[sections.length - 1];
+  }
+  const rangeSource = toCleanString(pickField(raw, ["section", "Section", "sections", "Sections", "classSection", "jc", "time", "courseSchema", "CourseSchema", "classTime", "ClassTime"]));
+  const rangeMatch = rangeSource.match(/(?:第\s*)?(\d+)\s*(?:[-~至]|到)\s*(\d+)\s*节/) || rangeSource.match(/(\d+)\s*(?:[-~至]|到)\s*(\d+)/);
   if ((!start || !end) && rangeMatch) {
     start = start || Number(rangeMatch[1]);
     end = end || Number(rangeMatch[2]);
@@ -486,13 +544,13 @@ function normalizeSklCourse(raw, date, week) {
   if (!end) end = start;
   return {
     name,
-    day: normalizeWeekday(pickField(raw, ["weekDay", "weekday", "dayOfWeek", "xq", "xqj", "week"]), weekdayFromISO(date)),
+    day: normalizeWeekday(pickField(raw, ["weekDay", "WeekDay", "weekday", "Weekday", "dayOfWeek", "DayOfWeek", "xq", "xqj"]), weekdayFromISO(date)),
     start: Math.max(1, Math.min(13, start)),
     end: Math.max(start, Math.min(13, end)),
-    weeks: [week],
+    weeks: weeksFromSklCourse(raw, week),
     room,
     teacher,
-    credit: "",
+    credit: normalizeCredit(pickField(raw, ["mark", "Mark", "credit", "Credit", "xf", "score"])),
     note: ""
   };
 }
