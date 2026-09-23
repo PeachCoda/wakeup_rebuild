@@ -2394,3 +2394,142 @@ body {
     font-size: 24px !important;
   }
 }
+
+/* Softer glass modals and keyboard-aware sign-in placement. */
+.sheet-backdrop,
+.signin-backdrop,
+.week-picker-backdrop {
+  background: rgba(15, 23, 42, 0.24) !important;
+  backdrop-filter: blur(3px) saturate(0.96) !important;
+  -webkit-backdrop-filter: blur(3px) saturate(0.96) !important;
+}
+
+.bottom-sheet,
+.signin-panel,
+.week-picker-sheet,
+.dialog-card {
+  border-color: rgba(255, 255, 255, 0.48) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(245, 253, 255, 0.68)) !important;
+  box-shadow: 0 18px 58px rgba(24, 64, 86, 0.18) !important;
+  backdrop-filter: blur(22px) saturate(1.14) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.14) !important;
+}
+
+.bottom-sheet {
+  width: min(480px, calc(100vw - 52px)) !important;
+  max-height: min(66svh, 560px) !important;
+  padding: 18px !important;
+  border-radius: 26px !important;
+}
+
+.signin-panel {
+  top: var(--signin-modal-top, 50%) !important;
+  width: min(480px, calc(100vw - 52px)) !important;
+  max-height: min(calc(var(--modal-visible-height, 100svh) - 36px), 560px) !important;
+  gap: 10px !important;
+  padding: 18px !important;
+  border-radius: 26px !important;
+}
+
+.signin-panel:focus-within {
+  top: var(--signin-modal-top, 50%) !important;
+}
+
+.signin-head h3 {
+  font-size: 22px !important;
+}
+
+.signin-current {
+  padding: 10px 12px !important;
+  border-radius: 14px !important;
+  background: rgba(231, 250, 253, 0.72) !important;
+}
+
+.signin-current strong {
+  font-size: 15px !important;
+}
+
+.signin-current span,
+.signin-status,
+.signin-location,
+.signin-field span {
+  font-size: 12px !important;
+}
+
+.signin-status,
+.signin-location {
+  padding: 8px 10px !important;
+  border-radius: 12px !important;
+}
+
+.week-picker-sheet {
+  width: min(480px, calc(100vw - 52px)) !important;
+  max-height: min(50svh, 360px) !important;
+  padding: 14px !important;
+  border-radius: 24px !important;
+}
+
+.week-picker-head strong {
+  font-size: 17px !important;
+}
+
+.week-option {
+  min-height: 38px !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+}
+
+.week-option strong {
+  font-size: 13px !important;
+}
+
+.detail-title {
+  margin-bottom: 12px !important;
+}
+
+.detail-title h3 {
+  font-size: 19px !important;
+  font-weight: 760 !important;
+}
+
+.detail-row {
+  grid-template-columns: 46px minmax(0, 1fr) !important;
+  gap: 10px !important;
+  padding: 6px 0 !important;
+  font-size: 15px !important;
+  line-height: 1.38 !important;
+}
+
+.signin-code-grid {
+  gap: 8px !important;
+}
+
+.signin-code-digit {
+  height: 50px !important;
+  border-radius: 16px !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  font-size: 24px !important;
+}
+
+@media (max-width: 520px) {
+  .bottom-sheet,
+  .signin-panel {
+    width: calc(100vw - 48px) !important;
+    padding: 16px !important;
+    border-radius: 24px !important;
+  }
+
+  .bottom-sheet {
+    max-height: min(64svh, 520px) !important;
+  }
+
+  .signin-panel {
+    max-height: min(calc(var(--modal-visible-height, 100svh) - 32px), 520px) !important;
+  }
+
+  .signin-code-digit {
+    height: 48px !important;
+    border-radius: 15px !important;
+    font-size: 23px !important;
+  }
+}

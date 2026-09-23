@@ -534,6 +534,19 @@
   }
 
 
+  function updateModalViewportVars() {
+    const viewport = window.visualViewport;
+    const root = document.documentElement;
+    if (!viewport) {
+      root.style.removeProperty("--signin-modal-top");
+      root.style.removeProperty("--modal-visible-height");
+      return;
+    }
+    const keyboardLikelyOpen = viewport.height < window.innerHeight * 0.82;
+    const centerRatio = keyboardLikelyOpen ? 0.52 : 0.5;
+    root.style.setProperty("--signin-modal-top", `${Math.round(viewport.offsetTop + viewport.height * centerRatio)}px`);
+    root.style.setProperty("--modal-visible-height", `${Math.round(viewport.height)}px`);
+  }
   function openSignInPanel(mode = "signin", context = null) {
     closeTopbarMenu();
     const accountMode = mode === "account";
@@ -546,6 +559,7 @@
     loadSavedSignInUsername();
     elements.signinBackdrop.hidden = false;
     elements.signinPanel.hidden = false;
+    updateModalViewportVars();
     checkSignInBackend().then(() => checkSignInAccountStatus({ quiet: true }));
   }
 
@@ -553,6 +567,7 @@
     if (!elements.signinBackdrop || !elements.signinPanel) return;
     elements.signinBackdrop.hidden = true;
     elements.signinPanel.hidden = true;
+    document.documentElement.style.removeProperty("--signin-modal-top");
   }
 
   function renderSignInCurrentCourse(context = null) {
@@ -656,6 +671,9 @@
   function focusSignInCode() {
     const target = elements.signInCodeDigits?.find((input) => !input.value) || elements.signInCodeDigits?.[0] || elements.signInCodeInput;
     target?.focus();
+    updateModalViewportVars();
+    window.setTimeout(updateModalViewportVars, 80);
+    window.setTimeout(updateModalViewportVars, 260);
   }
 
   function fillSignInCodeDigits(value, focusIndex = 0) {
@@ -663,6 +681,9 @@
     const nextIndex = Math.min(code.length, Math.max(0, focusIndex));
     const target = elements.signInCodeDigits?.[nextIndex] || elements.signInCodeDigits?.[elements.signInCodeDigits.length - 1];
     target?.focus();
+    updateModalViewportVars();
+    window.setTimeout(updateModalViewportVars, 80);
+    window.setTimeout(updateModalViewportVars, 260);
     return code;
   }
 
@@ -1699,6 +1720,9 @@
   });
   elements.topbarMenu?.addEventListener("click", (event) => event.stopPropagation());
   document.addEventListener("click", closeTopbarMenu);
+  window.visualViewport?.addEventListener("resize", updateModalViewportVars);
+  window.visualViewport?.addEventListener("scroll", updateModalViewportVars);
+  window.addEventListener("resize", updateModalViewportVars);
 
   elements.openAccountBtn?.addEventListener("click", () => openSignInPanel(signInAccountLoggedIn ? "signin" : "account"));
   elements.syncSklScheduleBtn?.addEventListener("click", syncSklSchedule);
@@ -1714,7 +1738,11 @@
     input.addEventListener("input", (event) => handleSignInCodeDigitInput(event, index));
     input.addEventListener("keydown", (event) => handleSignInCodeDigitKeydown(event, index));
     input.addEventListener("paste", handleSignInCodeDigitPaste);
-    input.addEventListener("focus", () => input.select());
+    input.addEventListener("focus", () => {
+      input.select();
+      updateModalViewportVars();
+      window.setTimeout(updateModalViewportVars, 220);
+    });
   });
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
@@ -1730,7 +1758,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-22").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-23").catch(() => {});
     });
   }
 
@@ -1738,13 +1766,3 @@
   registerServiceWorker();
   render();
 })();
-
-
-
-
-
-
-
-
-
-
