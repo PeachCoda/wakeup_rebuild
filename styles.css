@@ -2200,3 +2200,28 @@ body {
   background: transparent !important;
   transform: none !important;
 }
+
+
+.signin-location {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.signin-location[data-tone="ok"] {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.signin-location[data-tone="warn"] {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.signin-location[data-tone="bad"] {
+  background: #fef2f2;
+  color: #b42318;
+}

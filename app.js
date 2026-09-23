@@ -67,6 +67,7 @@
     signinCurrentCourse: document.querySelector("#signinCurrentCourse"),
     signInPanelTitle: document.querySelector("#signInPanelTitle"),
     signinStatus: document.querySelector("#signinStatus"),
+    signInLocationStatus: document.querySelector("#signInLocationStatus"),
     signInLoginFields: document.querySelector("#signInLoginFields"),
     signInCodeField: document.querySelector("#signInCodeField"),
     signInUsernameInput: document.querySelector("#signInUsernameInput"),
@@ -616,6 +617,18 @@
     elements.signinStatus.dataset.tone = tone;
   }
 
+  function setSignInLocationStatus(message, tone = "idle") {
+    if (!elements.signInLocationStatus) return;
+    elements.signInLocationStatus.textContent = message;
+    elements.signInLocationStatus.dataset.tone = tone;
+  }
+
+  function formatSignInLocation(coords) {
+    if (!coords?.latitude || !coords?.longitude) return "定位：未获取";
+    const accuracy = coords.accuracy ? ` · ±${coords.accuracy}m` : "";
+    return `定位：${coords.latitude}, ${coords.longitude}${accuracy}`;
+  }
+
   function setSignInLoggedIn(loggedIn) {
     const accountMode = elements.signinPanel?.dataset.mode === "account";
     if (elements.signinPanel) elements.signinPanel.dataset.loggedIn = loggedIn ? "true" : "false";
@@ -623,6 +636,7 @@
       if (elements.signInLoginFields) elements.signInLoginFields.hidden = Boolean(loggedIn);
       if (elements.signInAccountLoginBtn) elements.signInAccountLoginBtn.hidden = Boolean(loggedIn);
       if (elements.signInCodeField) elements.signInCodeField.hidden = true;
+      if (elements.signInLocationStatus) elements.signInLocationStatus.hidden = true;
       if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = true;
       if (!loggedIn && elements.signinPanel && !elements.signinPanel.hidden) requestAnimationFrame(() => elements.signInUsernameInput?.focus());
       return;
@@ -630,6 +644,7 @@
     if (elements.signInLoginFields) elements.signInLoginFields.hidden = Boolean(loggedIn);
     if (elements.signInAccountLoginBtn) elements.signInAccountLoginBtn.hidden = Boolean(loggedIn);
     if (elements.signInCodeField) elements.signInCodeField.hidden = !loggedIn;
+    if (elements.signInLocationStatus) elements.signInLocationStatus.hidden = !loggedIn;
     if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = !loggedIn;
     if (loggedIn && elements.signinPanel && !elements.signinPanel.hidden) {
       warmSignInPosition({ silent: true });
@@ -798,10 +813,12 @@
       navigator.geolocation.getCurrentPosition((position) => {
         const coords = {
           latitude: Number(position.coords.latitude).toFixed(6),
-          longitude: Number(position.coords.longitude).toFixed(6)
+          longitude: Number(position.coords.longitude).toFixed(6),
+          accuracy: position.coords.accuracy ? Math.round(position.coords.accuracy) : ""
         };
         signInPositionCache = coords;
         signInPositionCacheAt = Date.now();
+        setSignInLocationStatus(formatSignInLocation(coords), "ok");
         resolve(coords);
       }, reject, options);
     });
@@ -811,36 +828,60 @@
     return signInPositionCache && Date.now() - signInPositionCacheAt < 10 * 60 * 1000;
   }
 
+  function signInLocationErrorMessage(error) {
+    if (error?.code === 1) return "定位：未授权";
+    if (error?.code === 2) return "定位：暂时不可用";
+    if (error?.code === 3) return "定位：获取超时";
+    return "定位：未获取";
+  }
+
   async function warmSignInPosition(options = {}) {
-    if (hasFreshSignInPosition()) return signInPositionCache;
-    if (!navigator.geolocation) return null;
+    if (hasFreshSignInPosition()) {
+      setSignInLocationStatus(formatSignInLocation(signInPositionCache), "ok");
+      return signInPositionCache;
+    }
+    if (!navigator.geolocation) {
+      setSignInLocationStatus("定位：当前浏览器不支持", "warn");
+      return null;
+    }
     if (!signInPositionPending) {
+      setSignInLocationStatus("定位：正在获取…", "idle");
       signInPositionPending = readSignInPosition({ enableHighAccuracy: false, timeout: 6000, maximumAge: 30 * 60 * 1000 })
         .catch((error) => {
+          const message = signInLocationErrorMessage(error);
+          setSignInLocationStatus(`${message}，可继续尝试提交`, error?.code === 1 ? "bad" : "warn");
           if (!options.silent && error?.code === 1) throw new Error("需要允许定位后才能签到");
           return null;
         })
         .finally(() => {
           signInPositionPending = null;
         });
+    } else {
+      setSignInLocationStatus("定位：正在获取…", "idle");
     }
     return signInPositionPending;
   }
 
-  async function getSignInPosition() {
-    if (hasFreshSignInPosition()) return signInPositionCache;
+  async function getSignInPosition(options = {}) {
+    if (hasFreshSignInPosition()) {
+      setSignInLocationStatus(formatSignInLocation(signInPositionCache), "ok");
+      return signInPositionCache;
+    }
     if (!navigator.geolocation) {
-      setSignInStatus("当前浏览器不支持定位，先尝试提交。", "warn");
+      setSignInLocationStatus("定位：当前浏览器不支持", "warn");
       return emptySignInPosition();
     }
     try {
-      const warmed = await warmSignInPosition({ silent: false });
+      const warmed = await Promise.race([
+        warmSignInPosition({ silent: false }),
+        new Promise((resolve) => window.setTimeout(() => resolve(null), options.quick ? 1800 : 4000))
+      ]);
       if (warmed) return warmed;
-      return await readSignInPosition({ enableHighAccuracy: false, timeout: 5000, maximumAge: 30 * 60 * 1000 });
+      setSignInLocationStatus("定位：还在获取，先尝试提交", "warn");
+      return emptySignInPosition();
     } catch (error) {
       if (error?.code === 1 || /允许定位/.test(error?.message || "")) throw new Error("需要允许定位后才能签到");
-      setSignInStatus("定位暂时没返回，先尝试提交。", "warn");
-      warmSignInPosition({ silent: true });
+      setSignInLocationStatus("定位：暂时没返回，先尝试提交", "warn");
       return emptySignInPosition();
     }
   }
@@ -862,8 +903,7 @@
       return { captchaResult: true, bizResult: false };
     }
     try {
-      setSignInStatus("正在获取定位…");
-      const position = await getSignInPosition();
+      const position = await getSignInPosition({ quick: true });
       setSignInStatus("正在提交密令…");
       const response = await fetch(`${signInApiBase}/submit`, {
         method: "POST",
@@ -898,10 +938,9 @@
     }
     if (elements.signInSubmitBtn?.disabled) return;
     if (elements.signInSubmitBtn) elements.signInSubmitBtn.disabled = true;
-    setSignInStatus("正在获取定位…");
+    setSignInStatus("正在准备验证码…");
+    warmSignInPosition({ silent: true });
     try {
-      await getSignInPosition();
-      setSignInStatus("正在准备验证码…");
       await ensureSignInCaptcha();
       setSignInStatus("正在唤起验证码…");
       signInCaptchaSubmitTimer = window.setTimeout(() => {
