@@ -87,7 +87,7 @@
   let signInCaptchaSubmitTimer = null;
   let signInPositionCache = null;
   let signInPositionCacheAt = 0;
-  let signInCourseContext = null;
+  let signInAccountLoggedIn = false;
   function createDefaultState() {
     const scheduleId = uid();
     return {
@@ -533,10 +533,9 @@
 
   function openSignInPanel(mode = "signin", context = null) {
     closeTopbarMenu();
-    signInCourseContext = context;
     const accountMode = mode === "account";
     if (elements.signinPanel) elements.signinPanel.dataset.mode = accountMode ? "account" : "signin";
-    if (elements.signInPanelTitle) elements.signInPanelTitle.textContent = accountMode ? "登录上课啦账号" : "密令签到";
+    if (elements.signInPanelTitle) elements.signInPanelTitle.textContent = accountMode ? "登录上课啦账号" : "签到";
     if (elements.signinCurrentCourse) {
       elements.signinCurrentCourse.hidden = accountMode;
       if (!accountMode) renderSignInCurrentCourse(context);
@@ -669,11 +668,13 @@
 
   function renderAccountStatus(data) {
     if (!data?.loggedIn) {
+      signInAccountLoggedIn = false;
       if (elements.openAccountBtn) elements.openAccountBtn.textContent = "登录";
       setSignInLoggedIn(false);
       setSignInStatus("第一次使用需要先登录。", "warn");
       return;
     }
+    signInAccountLoggedIn = true;
     const userName = data?.user?.userName || data?.user?.name || data?.user?.id || "已登录";
     if (elements.openAccountBtn) elements.openAccountBtn.textContent = String(userName).slice(0, 8);
     setSignInLoggedIn(true);
@@ -909,7 +910,6 @@
         <div class="detail-row"><span>地点</span><strong>${escapeHtml(session.room || course.room || "未填写")}</strong></div>
         <div class="detail-row"><span>老师</span><strong>${escapeHtml(session.teacher || course.teacher || "未填写")}</strong></div>
         <div class="detail-row"><span>学分</span><strong>${escapeHtml(course.credit || "未填写")}</strong></div>
-        <button class="detail-signin-button" type="button" data-signin-course="${escapeHtml(course.id)}" data-session-index="${sessionIndex}">密令签到</button>
       </div>`;
     elements.sheetBackdrop.hidden = false;
     elements.courseSheet.hidden = false;
@@ -2641,7 +2641,7 @@
   elements.topbarMenu?.addEventListener("click", (event) => event.stopPropagation());
   document.addEventListener("click", closeTopbarMenu);
 
-  elements.openAccountBtn?.addEventListener("click", () => openSignInPanel("account"));
+  elements.openAccountBtn?.addEventListener("click", () => openSignInPanel(signInAccountLoggedIn ? "signin" : "account"));
   elements.syncSklScheduleBtn?.addEventListener("click", syncSklSchedule);
   elements.closeSignInBtn?.addEventListener("click", closeSignInPanel);
   elements.signinBackdrop?.addEventListener("click", closeSignInPanel);
@@ -2655,13 +2655,6 @@
   elements.newScheduleBtn.addEventListener("click", createNewSchedule);
   elements.saveSettingsBtn.addEventListener("click", saveSettingsFromDialog);
   elements.deleteScheduleBtn.addEventListener("click", deleteCurrentSchedule);
-  elements.courseDetail?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-signin-course]");
-    if (!button) return;
-    const context = { courseId: button.dataset.signinCourse, sessionIndex: Number(button.dataset.sessionIndex) || 0 };
-    hideCourseDetail();
-    openSignInPanel("signin", context);
-  });
   elements.sheetBackdrop.addEventListener("click", hideCourseDetail);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") hideCourseDetail();

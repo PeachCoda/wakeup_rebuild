@@ -2173,20 +2173,44 @@ body {
   white-space: nowrap;
 }
 
-.account-button:active,
-.detail-signin-button:active {
+.account-button:active {
   transform: translateY(1px);
 }
 
-.detail-signin-button {
-  width: 100%;
-  min-height: 42px;
-  margin-top: 14px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 760;
-  box-shadow: 0 10px 24px rgba(25, 118, 223, 0.18);
+
+
+/* Compact course detail sheet. */
+.bottom-sheet {
+  padding: 14px 14px max(16px, env(safe-area-inset-bottom));
+}
+
+.sheet-handle {
+  width: 42px;
+  height: 5px;
+  margin-bottom: 10px;
+}
+
+.detail-card {
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.detail-title {
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.detail-title h3 {
+  font-size: 20px;
+}
+
+.detail-accent {
+  height: 24px;
+}
+
+.detail-row {
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 14px;
 }
