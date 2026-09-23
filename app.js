@@ -52,6 +52,8 @@
     openAccountBtn: document.querySelector("#openAccountBtn"),
     syncSklScheduleBtn: document.querySelector("#syncSklScheduleBtn"),
     exportImageBtn: document.querySelector("#exportImageBtn"),
+    backgroundInput: document.querySelector("#backgroundInput"),
+    clearBackgroundBtn: document.querySelector("#clearBackgroundBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
     settingsDialog: document.querySelector("#settingsDialog"),
     settingName: document.querySelector("#settingName"),
@@ -109,6 +111,7 @@
           showWeekend: false,
           showOtherWeek: true,
           showTime: true,
+          backgroundImage: "",
           timeTable: cloneDefaultTimeTable(13),
           courses: []
         }
@@ -142,6 +145,7 @@
         showWeekend: false,
         showOtherWeek: schedule.showOtherWeek !== false,
         showTime: schedule.showTime !== false,
+        backgroundImage: typeof schedule.backgroundImage === "string" ? schedule.backgroundImage : "",
         timeTable: cloneDefaultTimeTable(13),
         courses: Array.isArray(schedule.courses) ? schedule.courses.map(normalizeCourse).filter(Boolean) : []
       }))
@@ -232,11 +236,20 @@
     localStorage.setItem(storageKey, JSON.stringify(state));
   }
 
+  function applyScheduleBackground(schedule) {
+    const value = schedule?.backgroundImage || "";
+    const safeValue = String(value).replace(/["\\\n\r]/g, "");
+    const cssUrl = value ? `url("${safeValue}")` : "none";
+    document.documentElement.style.setProperty("--schedule-bg-image", cssUrl);
+    document.documentElement.classList.toggle("has-custom-bg", Boolean(value));
+  }
+
   function render() {
     const schedule = currentSchedule();
     state.selectedWeek = clamp(state.selectedWeek, 1, schedule.totalWeeks);
     document.documentElement.style.setProperty("--day-count", visibleDays(schedule).length);
     document.documentElement.style.setProperty("--cell-height", `${schedule.cellHeight}px`);
+    applyScheduleBackground(schedule);
     if (elements.toggleOtherWeekBtn) elements.toggleOtherWeekBtn.textContent = schedule.showOtherWeek ? "隐藏非本周课程" : "显示非本周课程";
     renderScheduleList(schedule);
     renderWeekHeader(schedule);
@@ -1489,33 +1502,39 @@
     }
   }
 
-  function renderScheduleImageBlob(schedule) {
+  async function renderScheduleImageBlob(schedule) {
     const days = visibleDays(schedule);
     const weekStart = addDays(parseISODate(schedule.startDate), (state.selectedWeek - 1) * 7);
-    const width = 1280;
-    const margin = 44;
-    const titleHeight = 120;
-    const dateHeight = 96;
-    const timeWidth = 112;
-    const rowHeight = 96;
+    const width = 920;
+    const margin = 22;
+    const titleHeight = 118;
+    const dateHeight = 86;
+    const timeWidth = 76;
+    const rowHeight = 104;
     const height = margin * 2 + titleHeight + dateHeight + rowHeight * schedule.nodes;
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
     const fontFamily = '"Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", SimSun, serif';
-    ctx.fillStyle = "#f8fdff";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
-    roundRect(ctx, 20, 20, width - 40, height - 40, 32, "#ffffff");
+    const backgroundImage = schedule.backgroundImage ? await loadCanvasImage(schedule.backgroundImage).catch(() => null) : null;
+    if (backgroundImage) {
+      drawImageCover(ctx, backgroundImage, 0, 0, width, height);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+      ctx.fillRect(0, 0, width, height);
+    }
+    roundRect(ctx, 12, 12, width - 24, height - 24, 28, backgroundImage ? "rgba(255, 255, 255, 0.74)" : "#ffffff");
 
     ctx.fillStyle = "#1f2937";
-    ctx.font = `600 52px ${fontFamily}`;
+    ctx.font = `600 46px ${fontFamily}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.fillText(`第 ${state.selectedWeek} 周`, margin, margin);
-    ctx.font = `400 28px ${fontFamily}`;
+    ctx.font = `400 24px ${fontFamily}`;
     ctx.fillStyle = "#64748b";
-    ctx.fillText(`${schedule.name || "FakeUp"} · ${formatWeekSubtitle(schedule, weekStart)}`, margin, margin + 64);
+    ctx.fillText(`${schedule.name || "FakeUp"} · ${formatWeekSubtitle(schedule, weekStart)}`, margin, margin + 58);
 
     const gridLeft = margin;
     const gridTop = margin + titleHeight;
@@ -1539,13 +1558,13 @@
       const centerX = gridLeft + timeWidth + dayWidth * index + dayWidth / 2;
       const isToday = isSameDate(date, today);
       if (isToday) {
-        roundRect(ctx, centerX - 30, dateTop + 10, 60, 76, 20, "#dbeafe");
+        roundRect(ctx, centerX - 30, dateTop + 8, 60, 70, 20, "#dbeafe");
       }
       ctx.fillStyle = isToday ? "#1976e8" : "#1f2937";
-      ctx.font = `400 28px ${fontFamily}`;
-      ctx.fillText(dayNames[day - 1], centerX, dateTop + 30);
-      ctx.font = `400 34px ${fontFamily}`;
-      ctx.fillText(String(date.getDate()), centerX, dateTop + 68);
+      ctx.font = `400 24px ${fontFamily}`;
+      ctx.fillText(dayNames[day - 1], centerX, dateTop + 26);
+      ctx.font = `400 32px ${fontFamily}`;
+      ctx.fillText(String(date.getDate()), centerX, dateTop + 62);
       drawLine(ctx, gridLeft + timeWidth + dayWidth * index, bodyTop, gridLeft + timeWidth + dayWidth * index, bodyTop + rowHeight * schedule.nodes);
     });
     drawLine(ctx, gridLeft + gridWidth, bodyTop, gridLeft + gridWidth, bodyTop + rowHeight * schedule.nodes);
@@ -1554,8 +1573,13 @@
       const y = bodyTop + (node - 1) * rowHeight;
       drawDashedLine(ctx, gridLeft, y, gridLeft + gridWidth, y, "#e7edf3");
       ctx.fillStyle = "#1f2937";
-      ctx.font = `400 38px ${fontFamily}`;
+      const time = schedule.timeTable[node - 1] || defaultTimes[node - 1] || ["", ""];
+      ctx.font = `400 22px ${fontFamily}`;
+      ctx.fillText(time[0] || "", gridLeft + timeWidth / 2, y + 25);
+      ctx.font = `400 34px ${fontFamily}`;
       ctx.fillText(String(node), gridLeft + timeWidth / 2, y + rowHeight / 2);
+      ctx.font = `400 22px ${fontFamily}`;
+      ctx.fillText(time[1] || "", gridLeft + timeWidth / 2, y + rowHeight - 24);
     }
     drawDashedLine(ctx, gridLeft, bodyTop + rowHeight * schedule.nodes, gridLeft + gridWidth, bodyTop + rowHeight * schedule.nodes, "#e7edf3");
 
@@ -1566,7 +1590,7 @@
     layoutCourseItems(visibleItems).forEach((item) => {
       const dayIndex = days.indexOf(item.day);
       if (dayIndex < 0) return;
-      const gap = 4;
+      const gap = 2;
       const x = gridLeft + timeWidth + dayWidth * dayIndex + dayWidth * item.laneIndex / item.laneCount + gap;
       const y = bodyTop + (item.start - 1) * rowHeight + gap;
       const w = dayWidth / item.laneCount - gap * 2;
@@ -1580,13 +1604,90 @@
       if (item.teacher) lines.push(item.teacher);
       if (item.room) lines.push(item.room);
       ctx.fillStyle = textColor;
-      ctx.font = `500 ${item.laneCount > 1 ? 20 : 23}px ${fontFamily}`;
-      drawWrappedCenteredLines(ctx, lines, x + 10, y + 20, w - 20, h - 30, item.laneCount > 1 ? 24 : 28);
+      ctx.font = `500 ${item.laneCount > 1 ? 18 : 21}px ${fontFamily}`;
+      drawWrappedCenteredLines(ctx, lines, x + 8, y + 18, w - 16, h - 28, item.laneCount > 1 ? 22 : 26);
     });
 
     return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("canvas toBlob failed")), "image/png", 0.95);
     });
+  }
+
+
+  function loadCanvasImage(src) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = src;
+    });
+  }
+
+  function drawImageCover(ctx, image, x, y, width, height) {
+    const scale = Math.max(width / image.width, height / image.height);
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    const drawX = x + (width - drawWidth) / 2;
+    const drawY = y + (height - drawHeight) / 2;
+    ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+  }
+
+  function resizeBackgroundImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        loadCanvasImage(reader.result).then((image) => {
+          const maxSide = 1400;
+          const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+          const width = Math.max(1, Math.round(image.width * scale));
+          const height = Math.max(1, Math.round(image.height * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(image, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.86));
+        }).catch(reject);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleBackgroundInputChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("请选择图片文件");
+      return;
+    }
+    closeTopbarMenu();
+    showToast("正在处理背景…");
+    try {
+      const image = await resizeBackgroundImage(file);
+      const schedule = currentSchedule();
+      schedule.backgroundImage = image;
+      saveState();
+      applyScheduleBackground(schedule);
+      render();
+      showToast("背景已替换");
+    } catch (error) {
+      console.warn("替换背景失败。", error);
+      showToast("背景替换失败");
+    }
+  }
+
+  function clearBackgroundImage() {
+    const schedule = currentSchedule();
+    schedule.backgroundImage = "";
+    saveState();
+    applyScheduleBackground(schedule);
+    closeTopbarMenu();
+    render();
+    showToast("背景已清除");
   }
 
   function formatWeekSubtitle(schedule, weekStart) {
@@ -1737,6 +1838,8 @@
   elements.signinPanel?.addEventListener("keydown", handleSignInPanelKeydown);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
+  elements.backgroundInput?.addEventListener("change", handleBackgroundInputChange);
+  elements.clearBackgroundBtn?.addEventListener("click", clearBackgroundImage);
   elements.newScheduleBtn.addEventListener("click", createNewSchedule);
   elements.saveSettingsBtn.addEventListener("click", saveSettingsFromDialog);
   elements.deleteScheduleBtn.addEventListener("click", deleteCurrentSchedule);
@@ -1749,7 +1852,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-26").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-27").catch(() => {});
     });
   }
 

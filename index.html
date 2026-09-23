@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#a7f1fc" />
+    <meta name="theme-color" content="#ffffff" />
     <meta name="application-name" content="FakeUp" />
     <meta name="apple-mobile-web-app-title" content="FakeUp" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,9 +11,9 @@
     <link rel="icon" href="./favicon.ico?v=fakeup-icon-3" sizes="any" />
     <link rel="icon" type="image/png" href="./assets/favicon-192.png?v=fakeup-icon-3" />
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
-    <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
-    <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-38" />
+    <link rel="manifest" href="./manifest.json?v=fakeup-pwa-3" />
+    <style>html,body{margin:0;background:#fff;}</style>
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-39" />
   </head>
   <body>
     <div class="app-shell">
@@ -63,6 +63,8 @@
               <button class="menu-row" id="toggleOtherWeekBtn" type="button">显示非本周课程</button>
               <button class="menu-row" id="currentWeekBtn" type="button">返回本周课表</button>
               <button class="menu-row" id="syncSklScheduleBtn" type="button">同步上课啦课表</button>
+              <label class="menu-row file-menu-row" for="backgroundInput">替换背景</label>
+              <button class="menu-row" id="clearBackgroundBtn" type="button">清除背景</button>
               <button class="menu-row" id="exportImageBtn" type="button">导出课表图片</button>
             </div>
 
@@ -176,19 +178,10 @@
     </dialog>
 
 
+    <input class="sr-only" id="backgroundInput" type="file" accept="image/*" />
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-skl-74"></script>
+    <script src="./app.js?v=fakeup-skl-75"></script>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
 
