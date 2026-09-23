@@ -87,6 +87,7 @@
   let signInCaptchaSubmitTimer = null;
   let signInPositionCache = null;
   let signInPositionCacheAt = 0;
+  let signInPositionPending = null;
   let signInAccountLoggedIn = false;
   function createDefaultState() {
     const scheduleId = uid();
@@ -630,7 +631,10 @@
     if (elements.signInAccountLoginBtn) elements.signInAccountLoginBtn.hidden = Boolean(loggedIn);
     if (elements.signInCodeField) elements.signInCodeField.hidden = !loggedIn;
     if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = !loggedIn;
-    if (loggedIn && elements.signinPanel && !elements.signinPanel.hidden) requestAnimationFrame(() => elements.signInCodeInput?.focus());
+    if (loggedIn && elements.signinPanel && !elements.signinPanel.hidden) {
+      warmSignInPosition({ silent: true });
+      requestAnimationFrame(() => elements.signInCodeInput?.focus());
+    }
   }
 
   async function checkSignInBackend() {
@@ -803,23 +807,41 @@
     });
   }
 
+  function hasFreshSignInPosition() {
+    return signInPositionCache && Date.now() - signInPositionCacheAt < 10 * 60 * 1000;
+  }
+
+  async function warmSignInPosition(options = {}) {
+    if (hasFreshSignInPosition()) return signInPositionCache;
+    if (!navigator.geolocation) return null;
+    if (!signInPositionPending) {
+      signInPositionPending = readSignInPosition({ enableHighAccuracy: false, timeout: 6000, maximumAge: 30 * 60 * 1000 })
+        .catch((error) => {
+          if (!options.silent && error?.code === 1) throw new Error("需要允许定位后才能签到");
+          return null;
+        })
+        .finally(() => {
+          signInPositionPending = null;
+        });
+    }
+    return signInPositionPending;
+  }
+
   async function getSignInPosition() {
-    if (signInPositionCache && Date.now() - signInPositionCacheAt < 10 * 60 * 1000) return signInPositionCache;
+    if (hasFreshSignInPosition()) return signInPositionCache;
     if (!navigator.geolocation) {
       setSignInStatus("当前浏览器不支持定位，先尝试提交。", "warn");
       return emptySignInPosition();
     }
     try {
-      return await readSignInPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 10 * 60 * 1000 });
-    } catch (firstError) {
-      if (firstError?.code === 1) throw new Error("需要允许定位后才能签到");
-      try {
-        return await readSignInPosition({ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-      } catch (secondError) {
-        if (secondError?.code === 1) throw new Error("需要允许定位后才能签到");
-        setSignInStatus("定位暂时没返回，先尝试提交。", "warn");
-        return emptySignInPosition();
-      }
+      const warmed = await warmSignInPosition({ silent: false });
+      if (warmed) return warmed;
+      return await readSignInPosition({ enableHighAccuracy: false, timeout: 5000, maximumAge: 30 * 60 * 1000 });
+    } catch (error) {
+      if (error?.code === 1 || /允许定位/.test(error?.message || "")) throw new Error("需要允许定位后才能签到");
+      setSignInStatus("定位暂时没返回，先尝试提交。", "warn");
+      warmSignInPosition({ silent: true });
+      return emptySignInPosition();
     }
   }
 

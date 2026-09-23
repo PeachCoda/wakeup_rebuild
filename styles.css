@@ -2186,3 +2186,17 @@ body {
   padding: 6px 0;
   font-size: 14px;
 }
+
+.topbar-menu .menu-row,
+.topbar-menu .menu-row:focus,
+.topbar-menu .menu-row:focus-visible,
+.topbar-menu .menu-row:active {
+  -webkit-tap-highlight-color: transparent;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.topbar-menu .menu-row:active {
+  background: transparent !important;
+  transform: none !important;
+}
