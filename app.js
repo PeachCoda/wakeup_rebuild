@@ -676,7 +676,7 @@
     }
     signInAccountLoggedIn = true;
     const userName = data?.user?.userName || data?.user?.name || data?.user?.id || "已登录";
-    if (elements.openAccountBtn) elements.openAccountBtn.textContent = String(userName).slice(0, 8);
+    if (elements.openAccountBtn) elements.openAccountBtn.textContent = "签到";
     setSignInLoggedIn(true);
     setSignInStatus(`${userName} 已登录。`, "ok");
   }
