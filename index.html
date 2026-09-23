@@ -61,7 +61,9 @@
             <div class="topbar-menu" id="topbarMenu" hidden>
               <button class="menu-row" id="toggleOtherWeekBtn" type="button">显示非本周课程</button>
               <button class="menu-row" id="currentWeekBtn" type="button">返回本周课表</button>
+              <button class="menu-row" id="openAccountBtn" type="button">登录上课啦账号</button>
               <button class="menu-row" id="openSignInBtn" type="button">上课啦签到</button>
+              <button class="menu-row" id="syncSklScheduleBtn" type="button">同步上课啦课表</button>
               <button class="menu-row" id="exportImageBtn" type="button">导出课表图片</button>
               <label class="menu-row file-menu-row" id="openImportBtn" tabindex="0">
                 <span>导入 PDF</span>
@@ -92,7 +94,7 @@
       <header class="signin-head">
         <div>
           <p class="eyebrow">上课啦</p>
-          <h3>密令签到</h3>
+          <h3 id="signInPanelTitle">密令签到</h3>
         </div>
         <button class="icon-button" id="closeSignInBtn" type="button" aria-label="关闭">×</button>
       </header>
@@ -160,7 +162,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-pdf-60"></script>
+    <script src="./app.js?v=fakeup-skl-61"></script>
   </body>
 </html>
 

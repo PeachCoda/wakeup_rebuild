@@ -50,7 +50,9 @@
     topbarMenu: document.querySelector("#topbarMenu"),
     openSettingsBtn: document.querySelector("#openSettingsBtn"),
     openImportBtn: document.querySelector("#openImportBtn"),
+    openAccountBtn: document.querySelector("#openAccountBtn"),
     openSignInBtn: document.querySelector("#openSignInBtn"),
+    syncSklScheduleBtn: document.querySelector("#syncSklScheduleBtn"),
     exportImageBtn: document.querySelector("#exportImageBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
     settingsDialog: document.querySelector("#settingsDialog"),
@@ -66,6 +68,7 @@
     signinBackdrop: document.querySelector("#signinBackdrop"),
     signinPanel: document.querySelector("#signinPanel"),
     signinCurrentCourse: document.querySelector("#signinCurrentCourse"),
+    signInPanelTitle: document.querySelector("#signInPanelTitle"),
     signinStatus: document.querySelector("#signinStatus"),
     signInLoginFields: document.querySelector("#signInLoginFields"),
     signInCodeField: document.querySelector("#signInCodeField"),
@@ -530,9 +533,15 @@
   }
 
 
-  function openSignInPanel() {
+  function openSignInPanel(mode = "signin") {
     closeTopbarMenu();
-    renderSignInCurrentCourse();
+    const accountMode = mode === "account";
+    if (elements.signinPanel) elements.signinPanel.dataset.mode = accountMode ? "account" : "signin";
+    if (elements.signInPanelTitle) elements.signInPanelTitle.textContent = accountMode ? "登录上课啦账号" : "密令签到";
+    if (elements.signinCurrentCourse) {
+      elements.signinCurrentCourse.hidden = accountMode;
+      if (!accountMode) renderSignInCurrentCourse();
+    }
     loadSavedSignInUsername();
     elements.signinBackdrop.hidden = false;
     elements.signinPanel.hidden = false;
@@ -602,7 +611,16 @@
   }
 
   function setSignInLoggedIn(loggedIn) {
+    const accountMode = elements.signinPanel?.dataset.mode === "account";
     if (elements.signinPanel) elements.signinPanel.dataset.loggedIn = loggedIn ? "true" : "false";
+    if (accountMode) {
+      if (elements.signInLoginFields) elements.signInLoginFields.hidden = Boolean(loggedIn);
+      if (elements.signInAccountLoginBtn) elements.signInAccountLoginBtn.hidden = Boolean(loggedIn);
+      if (elements.signInCodeField) elements.signInCodeField.hidden = true;
+      if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = true;
+      if (!loggedIn) requestAnimationFrame(() => elements.signInUsernameInput?.focus());
+      return;
+    }
     if (elements.signInLoginFields) elements.signInLoginFields.hidden = Boolean(loggedIn);
     if (elements.signInAccountLoginBtn) elements.signInAccountLoginBtn.hidden = Boolean(loggedIn);
     if (elements.signInCodeField) elements.signInCodeField.hidden = !loggedIn;
@@ -992,6 +1010,34 @@
     saveState();
     render();
     showToast(`已导入 ${schedule.courses.length} 门课程`);
+  }
+
+  async function syncSklSchedule() {
+    closeTopbarMenu();
+    const schedule = currentSchedule();
+    showToast("正在同步上课啦课表…");
+    try {
+      const response = await fetch(`${signInApiBase}/schedule/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startDate: schedule.startDate, weeks: schedule.totalWeeks || termWeeks, userAgent: navigator.userAgent })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        showToast(data?.message || "请先登录上课啦账号");
+        openSignInPanel("account");
+        return;
+      }
+      if (!response.ok || data?.ok === false) throw new Error(data?.message || `HTTP ${response.status}`);
+      if (!Array.isArray(data.courses) || !data.courses.length) {
+        showToast("上课啦没有返回课程");
+        return;
+      }
+      applyImportedCourses(data.courses);
+      showToast(`已同步 ${currentSchedule().courses.length} 门课程`);
+    } catch (error) {
+      showToast(error?.message || "同步上课啦课表失败");
+    }
   }
 
   async function importPdfFile(file) {
@@ -2584,7 +2630,9 @@
   elements.topbarMenu?.addEventListener("click", (event) => event.stopPropagation());
   document.addEventListener("click", closeTopbarMenu);
 
-  elements.openSignInBtn?.addEventListener("click", openSignInPanel);
+  elements.openAccountBtn?.addEventListener("click", () => openSignInPanel("account"));
+  elements.openSignInBtn?.addEventListener("click", () => openSignInPanel("signin"));
+  elements.syncSklScheduleBtn?.addEventListener("click", syncSklSchedule);
   elements.closeSignInBtn?.addEventListener("click", closeSignInPanel);
   elements.signinBackdrop?.addEventListener("click", closeSignInPanel);
   elements.signInAccountLoginBtn?.addEventListener("click", loginSignInAccount);

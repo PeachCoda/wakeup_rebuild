@@ -407,6 +407,102 @@ async function loginToSkl(username, password) {
   return { token, user: probe.body.user };
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function parseISODateUTC(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addDaysISO(value, offset) {
+  const date = parseISODateUTC(value);
+  if (!date) return "";
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
+function weekdayFromISO(value) {
+  const date = parseISODateUTC(value);
+  if (!date) return 1;
+  const day = date.getUTCDay();
+  return day === 0 ? 7 : day;
+}
+
+function pickField(source, keys) {
+  if (!source || typeof source !== "object") return "";
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+  }
+  return "";
+}
+
+function toCleanString(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function toSectionNumber(value) {
+  if (Number.isFinite(Number(value))) return Number(value);
+  const match = String(value || "").match(/\d+/);
+  return match ? Number(match[0]) : 0;
+}
+
+function courseListFromSklPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  const candidates = [payload.data, payload.rows, payload.list, payload.result, payload.data?.list, payload.data?.rows, payload.data?.records];
+  return candidates.find(Array.isArray) || [];
+}
+
+function normalizeSklCourse(raw, date, week) {
+  const name = toCleanString(pickField(raw, ["courseName", "name", "kcmc", "className", "title"]));
+  if (!name) return null;
+  const room = toCleanString(pickField(raw, ["classRoom", "room", "place", "location", "address", "skdd"]));
+  const teacher = toCleanString(pickField(raw, ["teacherName", "teacher", "teacherNames", "teacher_name", "jsxm"]));
+  let start = toSectionNumber(pickField(raw, ["startSection", "startNode", "beginSection", "sectionStart", "beginNode", "start", "jcStart"]));
+  let end = toSectionNumber(pickField(raw, ["endSection", "endNode", "finishSection", "sectionEnd", "end", "jcEnd"]));
+  const rangeSource = toCleanString(pickField(raw, ["section", "sections", "classSection", "jc", "period", "time"]));
+  const rangeMatch = rangeSource.match(/(\d+)\s*(?:[-~至]|到)\s*(\d+)/);
+  if ((!start || !end) && rangeMatch) {
+    start = start || Number(rangeMatch[1]);
+    end = end || Number(rangeMatch[2]);
+  }
+  if (!start) return null;
+  if (!end) end = start;
+  return {
+    name,
+    day: weekdayFromISO(date),
+    start: Math.max(1, Math.min(13, start)),
+    end: Math.max(start, Math.min(13, end)),
+    weeks: [week],
+    room,
+    teacher,
+    credit: "",
+    note: ""
+  };
+}
+
+function mergeSklCourseWeeks(courses) {
+  const groups = new Map();
+  for (const course of courses) {
+    if (!course) continue;
+    const key = [course.name, course.day, course.start, course.end, course.room, course.teacher].join("|");
+    if (!groups.has(key)) groups.set(key, { ...course, weeks: [] });
+    const group = groups.get(key);
+    for (const week of course.weeks || []) if (!group.weeks.includes(week)) group.weeks.push(week);
+  }
+  return Array.from(groups.values()).map((course) => ({ ...course, weeks: course.weeks.sort((a, b) => a - b) }));
+}
+
+async function fetchSklCoursesForDate(token, date, week, body) {
+  const resp = await sklRequest({ path: "/api/course", query: { startTime: date }, token, userAgent: body.userAgent });
+  if (resp.status === 401) throw Object.assign(new Error("上课啦登录态无效或已过期"), { status: 401 });
+  if (resp.status >= 500) throw Object.assign(new Error("上课啦课程接口暂时不可用"), { status: 502 });
+  return courseListFromSklPayload(resp.json).map((course) => normalizeSklCourse(course, date, week)).filter(Boolean);
+}
+
 async function todayCoursesForToken(token, body = {}) {
   const date = String(body.date || new Date().toISOString().slice(0, 10));
   const coursesResp = await sklRequest({ path: "/api/course", query: { startTime: date }, token, userAgent: body.userAgent });
@@ -467,6 +563,40 @@ async function accountStatus(req) {
   } catch (error) {
     return { status: 401, body: { ok: false, loggedIn: false, message: error.message || "登录态失效" } };
   }
+}
+
+async function syncScheduleFromSkl(req) {
+  const session = getSession(req);
+  if (!session) return { status: 401, body: { ok: false, message: "请先登录上课啦账号" } };
+  const body = await readJson(req);
+  const startDate = String(body.startDate || "").trim();
+  if (!parseISODateUTC(startDate)) return { status: 400, body: { ok: false, message: "缺少有效的学期开始日期" } };
+  const weeks = Math.max(1, Math.min(25, Number(body.weeks) || 17));
+  const totalDays = weeks * 7;
+  let token;
+  try {
+    token = (await tokenForRecord(session.record)).token;
+  } catch (error) {
+    return { status: 401, body: { ok: false, message: error?.message || "请重新登录上课啦账号" } };
+  }
+  const allCourses = [];
+  const concurrency = 5;
+  try {
+    for (let base = 0; base < totalDays; base += concurrency) {
+      const offsets = Array.from({ length: Math.min(concurrency, totalDays - base) }, (_, index) => base + index);
+      const batches = await Promise.all(offsets.map((offset) => {
+        const date = addDaysISO(startDate, offset);
+        const week = Math.floor(offset / 7) + 1;
+        return fetchSklCoursesForDate(token, date, week, body);
+      }));
+      for (const courses of batches) allCourses.push(...courses);
+    }
+  } catch (error) {
+    const status = Number(error?.status || 502);
+    return { status, body: { ok: false, message: error?.message || "上课啦课程接口暂时不可用" } };
+  }
+  const courses = mergeSklCourseWeeks(allCourses);
+  return { status: 200, body: { ok: true, courses, rawCount: allCourses.length, courseCount: courses.length, message: courses.length ? `已同步 ${courses.length} 门课程` : "上课啦没有返回课程" } };
 }
 
 async function accountLogout(req) {
@@ -563,6 +693,10 @@ async function route(req, res) {
   }
   if (req.method === "POST" && url.pathname === "/api/signin/token/probe") {
     const out = await probeToken(await readJson(req));
+    return sendJson(res, out.status, out.body);
+  }
+  if (req.method === "POST" && url.pathname === "/api/signin/schedule/sync") {
+    const out = await syncScheduleFromSkl(req);
     return sendJson(res, out.status, out.body);
   }
   if (req.method === "POST" && url.pathname === "/api/signin/submit") {
