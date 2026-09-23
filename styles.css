@@ -1,7 +1,6 @@
 :root {
   color-scheme: light;
   --bg: #ffffff;
-  --schedule-bg-image: none;
   --page-bg: #ffffff;
   --surface: #ffffff;
   --surface-soft: #f7f9fc;
@@ -1214,10 +1213,6 @@ textarea {
   min-height: 100svh;
   margin: 0 auto;
   background: #fff;
-  background-image: var(--schedule-bg-image);
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
   box-shadow: 0 0 0 1px rgba(31, 41, 55, 0.06), 0 24px 60px rgba(17, 24, 39, 0.18);
 }
 
@@ -2679,40 +2674,56 @@ body {
   display: none !important;
 }
 
-/* Custom schedule background. Kept opt-in so the default empty timetable stays clean white. */
-html.has-custom-bg body {
-  background-image: var(--schedule-bg-image);
+/* Custom schedule background. Use a separate fixed layer to avoid mobile layout bugs from huge data URLs in layout containers. */
+.page-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.app-shell {
+  position: relative;
+  z-index: 1;
+}
+
+html.has-custom-bg .page-background {
+  opacity: 1;
 }
 
 html.has-custom-bg .app-shell {
-  background-color: rgba(255, 255, 255, 0.72) !important;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.64)), var(--schedule-bg-image);
+  background: rgba(255, 255, 255, 0.68) !important;
 }
 
 html.has-custom-bg .main {
-  background: rgba(255, 255, 255, 0.62) !important;
+  background: rgba(255, 255, 255, 0.56) !important;
 }
 
 html.has-custom-bg .topbar,
 html.has-custom-bg .week-strip {
-  background: rgba(255, 255, 255, 0.74) !important;
+  background: rgba(255, 255, 255, 0.78) !important;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
 
 html.has-custom-bg .timetable {
-  background: rgba(255, 255, 255, 0.42) !important;
+  background: rgba(255, 255, 255, 0.36) !important;
 }
 
 html.has-custom-bg .time-cell,
 html.has-custom-bg .grid-cell {
-  background-color: rgba(255, 255, 255, 0.18);
+  background-color: rgba(255, 255, 255, 0.16);
 }
 
 html.has-custom-bg .course-card {
   backdrop-filter: blur(1.5px);
   -webkit-backdrop-filter: blur(1.5px);
+}
+
+.topbar-menu {
+  z-index: 2000 !important;
 }

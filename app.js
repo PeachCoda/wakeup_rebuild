@@ -42,6 +42,7 @@
     dateRangeText: document.querySelector("#dateRangeText"),
     weekStrip: document.querySelector("#weekStrip"),
     timetable: document.querySelector("#timetable"),
+    pageBackground: document.querySelector("#pageBackground"),
     prevWeekBtn: document.querySelector("#prevWeekBtn"),
     nextWeekBtn: document.querySelector("#nextWeekBtn"),
     currentWeekBtn: document.querySelector("#currentWeekBtn"),
@@ -238,9 +239,9 @@
 
   function applyScheduleBackground(schedule) {
     const value = schedule?.backgroundImage || "";
-    const safeValue = String(value).replace(/["\\\n\r]/g, "");
-    const cssUrl = value ? `url("${safeValue}")` : "none";
-    document.documentElement.style.setProperty("--schedule-bg-image", cssUrl);
+    if (elements.pageBackground) {
+      elements.pageBackground.style.backgroundImage = value ? `url(${JSON.stringify(value)})` : "";
+    }
     document.documentElement.classList.toggle("has-custom-bg", Boolean(value));
   }
 
@@ -1638,7 +1639,7 @@
       reader.onerror = reject;
       reader.onload = () => {
         loadCanvasImage(reader.result).then((image) => {
-          const maxSide = 1400;
+          const maxSide = 960;
           const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
           const width = Math.max(1, Math.round(image.width * scale));
           const height = Math.max(1, Math.round(image.height * scale));
@@ -1649,7 +1650,7 @@
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, width, height);
           ctx.drawImage(image, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.86));
+          resolve(canvas.toDataURL("image/jpeg", 0.78));
         }).catch(reject);
       };
       reader.readAsDataURL(file);
@@ -1852,7 +1853,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-27").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-28").catch(() => {});
     });
   }
 
