@@ -1157,12 +1157,6 @@ button:disabled {
     font-size: 15px;
   }
 
-  #openImportBtn {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-  }
-
   .day-cell span {
     min-width: 48px;
     height: 48px;
@@ -1283,12 +1277,6 @@ textarea {
   height: 36px;
   padding: 0 10px;
   font-size: 15px;
-}
-
-#openImportBtn {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
 }
 
 .week-nav,
@@ -1478,11 +1466,6 @@ body {
   padding-inline: 4px !important;
 }
 
-.pdf-import-action {
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.02em !important;
-}
 
 /* Remove the standalone title bar and make the date row slimmer. */
 .app-titlebar {
@@ -1643,14 +1626,6 @@ body {
 #topbarMenu .other-week-toggle,
 #topbarMenu #currentWeekBtn,
 #topbarMenu #exportImageBtn,
-#topbarMenu #openImportBtn {
-  width: 100% !important;
-  min-width: 0 !important;
-  height: auto !important;
-  min-height: 42px !important;
-  padding: 0 12px !important;
-  border-radius: 12px !important;
-}
 
 #topbarMenu .other-week-toggle {
   justify-content: flex-start !important;
@@ -2156,7 +2131,6 @@ body {
   display: none !important;
 }
 
-
 .account-button {
   min-width: 52px;
   max-width: 108px;
@@ -2176,8 +2150,6 @@ body {
 .account-button:active {
   transform: translateY(1px);
 }
-
-
 
 /* Compact course detail sheet. */
 .bottom-sheet {
