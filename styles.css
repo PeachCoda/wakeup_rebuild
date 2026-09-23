@@ -2705,6 +2705,7 @@ body {
 
 .page-bg-main {
   background-size: contain;
+  opacity: var(--preview-strength, 0.7);
 }
 
 .app-shell {
@@ -2717,7 +2718,8 @@ html.has-custom-bg .page-background {
 }
 
 html.has-custom-bg .app-shell {
-  background-color: rgba(255, 255, 255, var(--bg-shell-alpha, 0.64)) !important;
+  background-color: rgba(255, 255, 255, var(--bg-shell-alpha, 0.62)) !important;
+  background-repeat: no-repeat, no-repeat;
 }
 
 html.has-custom-bg .main {
@@ -2732,11 +2734,11 @@ html.has-custom-bg .week-strip {
 }
 
 html.has-custom-bg .timetable-wrap {
-  background: rgba(255, 255, 255, calc(var(--bg-panel-alpha, 0.7) - 0.28)) !important;
+  background: rgba(255, 255, 255, var(--bg-wrap-alpha, 0.22)) !important;
 }
 
 html.has-custom-bg .timetable {
-  background: rgba(255, 255, 255, calc(var(--bg-panel-alpha, 0.7) - 0.34)) !important;
+  background: rgba(255, 255, 255, var(--bg-grid-alpha, 0.14)) !important;
 }
 
 html.has-custom-bg .time-cell,
@@ -2840,6 +2842,7 @@ html.has-custom-bg .course-card {
   inset: -22px;
   background-size: cover;
   filter: blur(16px) saturate(1.08);
+  opacity: var(--preview-strength, 0.7);
 }
 
 .background-preview::after {
@@ -2882,7 +2885,47 @@ html.has-custom-bg .course-card {
   font-weight: 760;
 }
 
-.background-range input {
+..background-range input {
   width: 100%;
+  height: 28px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
   accent-color: var(--accent);
+}
+
+.background-range input::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(25, 118, 223, 0.34), rgba(125, 216, 213, 0.72));
+  box-shadow: inset 0 0 0 1px rgba(25, 118, 223, 0.08);
+}
+
+.background-range input::-webkit-slider-thumb {
+  width: 22px;
+  height: 22px;
+  margin-top: -7px;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--accent);
+  box-shadow: 0 6px 18px rgba(25, 118, 223, 0.24);
+}
+
+.background-range input::-moz-range-track {
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(25, 118, 223, 0.34), rgba(125, 216, 213, 0.72));
+}
+
+.background-range input::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 6px 18px rgba(25, 118, 223, 0.24);
 }

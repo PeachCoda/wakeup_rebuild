@@ -254,12 +254,23 @@
     const image = value ? `url(${JSON.stringify(value)})` : "";
     const opacity = clamp(Number(schedule?.backgroundOpacity) || 70, 20, 100);
     const strength = opacity / 100;
+    const shellAlpha = (0.86 - strength * 0.34).toFixed(2);
+    const panelAlpha = (0.9 - strength * 0.34).toFixed(2);
+    const wrapAlpha = Math.max(0.08, 0.42 - strength * 0.28).toFixed(2);
+    const gridAlpha = Math.max(0.04, 0.28 - strength * 0.2).toFixed(2);
     document.documentElement.style.setProperty("--bg-strength", String(strength));
-    document.documentElement.style.setProperty("--bg-shell-alpha", String((0.86 - strength * 0.32).toFixed(2)));
-    document.documentElement.style.setProperty("--bg-panel-alpha", String((0.9 - strength * 0.28).toFixed(2)));
+    document.documentElement.style.setProperty("--bg-shell-alpha", shellAlpha);
+    document.documentElement.style.setProperty("--bg-panel-alpha", panelAlpha);
+    document.documentElement.style.setProperty("--bg-wrap-alpha", wrapAlpha);
+    document.documentElement.style.setProperty("--bg-grid-alpha", gridAlpha);
+    document.documentElement.style.setProperty("--preview-strength", String(strength));
     if (elements.pageBackgroundBlur) elements.pageBackgroundBlur.style.backgroundImage = image;
     if (elements.pageBackgroundMain) elements.pageBackgroundMain.style.backgroundImage = image;
-    if (elements.appShell) elements.appShell.style.backgroundImage = "";
+    if (elements.appShell) {
+      elements.appShell.style.backgroundImage = value ? `linear-gradient(rgba(255, 255, 255, ${shellAlpha}), rgba(255, 255, 255, ${shellAlpha})), ${image}` : "";
+      elements.appShell.style.backgroundSize = value ? "auto, cover" : "";
+      elements.appShell.style.backgroundPosition = value ? "center, center" : "";
+    }
     updateBackgroundSettingsUi(schedule);
     document.documentElement.classList.toggle("has-custom-bg", Boolean(value));
   }
@@ -272,6 +283,7 @@
       const image = schedule?.backgroundImage ? `url(${JSON.stringify(schedule.backgroundImage)})` : "";
       elements.backgroundPreview.classList.toggle("empty", !image);
       elements.backgroundPreview.style.setProperty("--preview-bg", image || "none");
+      elements.backgroundPreview.style.setProperty("--preview-strength", String(opacity / 100));
       elements.backgroundPreview.innerHTML = `<span>${image ? "模糊铺底 · 完整显示" : "还没有背景图片"}</span>`;
     }
   }
@@ -1946,7 +1958,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-31").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-32").catch(() => {});
     });
   }
 
