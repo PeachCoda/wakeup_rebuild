@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-33" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-34" />
   </head>
   <body>
     <div class="app-shell">
@@ -106,9 +106,15 @@
           <input id="signInPasswordInput" type="password" autocomplete="current-password" />
         </label>
       </div>
-      <label class="signin-field" id="signInCodeField" hidden>
+      <label class="signin-field signin-code-field" id="signInCodeField" hidden>
         <span>密令</span>
-        <input id="signInCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="8" />
+        <input id="signInCodeInput" class="signin-code-hidden" inputmode="numeric" autocomplete="one-time-code" maxlength="4" />
+        <div class="signin-code-grid" id="signInCodeGrid" aria-label="输入四位密令">
+          <input class="signin-code-digit" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="密令第 1 位" />
+          <input class="signin-code-digit" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="密令第 2 位" />
+          <input class="signin-code-digit" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="密令第 3 位" />
+          <input class="signin-code-digit" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="密令第 4 位" />
+        </div>
       </label>
       <div class="signin-captcha" id="signInCaptcha" aria-hidden="true"></div>
       <button class="captcha-trigger-proxy" id="signInCaptchaTrigger" type="button" tabindex="-1" aria-hidden="true">验证码</button>
@@ -158,7 +164,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-skl-69"></script>
+    <script src="./app.js?v=fakeup-skl-70"></script>
   </body>
 </html>
 

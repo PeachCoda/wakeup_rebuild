@@ -73,6 +73,7 @@
     signInUsernameInput: document.querySelector("#signInUsernameInput"),
     signInPasswordInput: document.querySelector("#signInPasswordInput"),
     signInCodeInput: document.querySelector("#signInCodeInput"),
+    signInCodeDigits: Array.from(document.querySelectorAll(".signin-code-digit")),
     signInCaptcha: document.querySelector("#signInCaptcha"),
     signInCaptchaTrigger: document.querySelector("#signInCaptchaTrigger"),
     closeSignInBtn: document.querySelector("#closeSignInBtn"),
@@ -629,6 +630,72 @@
     return `定位：${coords.latitude}, ${coords.longitude}${accuracy}`;
   }
 
+  function normalizeSignInCode(value) {
+    return String(value || "").replace(/\D/g, "").slice(0, 4);
+  }
+
+  function updateSignInCodeBoxes(value = elements.signInCodeInput?.value || "") {
+    const code = normalizeSignInCode(value);
+    if (elements.signInCodeInput && elements.signInCodeInput.value !== code) elements.signInCodeInput.value = code;
+    elements.signInCodeDigits?.forEach((input, index) => {
+      input.value = code[index] || "";
+    });
+    return code;
+  }
+
+  function readSignInCode() {
+    const fromBoxes = elements.signInCodeDigits?.map((input) => normalizeSignInCode(input.value).slice(-1)).join("") || "";
+    return updateSignInCodeBoxes(fromBoxes || elements.signInCodeInput?.value || "");
+  }
+
+  function clearSignInCode() {
+    if (elements.signInCodeInput) elements.signInCodeInput.value = "";
+    updateSignInCodeBoxes("");
+  }
+
+  function focusSignInCode() {
+    const target = elements.signInCodeDigits?.find((input) => !input.value) || elements.signInCodeDigits?.[0] || elements.signInCodeInput;
+    target?.focus();
+  }
+
+  function fillSignInCodeDigits(value, focusIndex = 0) {
+    const code = updateSignInCodeBoxes(value);
+    const nextIndex = Math.min(code.length, Math.max(0, focusIndex));
+    const target = elements.signInCodeDigits?.[nextIndex] || elements.signInCodeDigits?.[elements.signInCodeDigits.length - 1];
+    target?.focus();
+    return code;
+  }
+
+  function handleSignInCodeDigitInput(event, index) {
+    const digits = normalizeSignInCode(event.target.value);
+    if (digits.length > 1) {
+      fillSignInCodeDigits(digits, digits.length);
+      return;
+    }
+    event.target.value = digits;
+    readSignInCode();
+    if (digits && index < elements.signInCodeDigits.length - 1) elements.signInCodeDigits[index + 1]?.focus();
+  }
+
+  function handleSignInCodeDigitKeydown(event, index) {
+    if (event.key === "Enter") {
+      submitSignInCode();
+      return;
+    }
+    if (event.key === "Backspace" && !event.target.value && index > 0) {
+      elements.signInCodeDigits[index - 1].value = "";
+      elements.signInCodeDigits[index - 1].focus();
+      readSignInCode();
+    }
+  }
+
+  function handleSignInCodeDigitPaste(event) {
+    const text = event.clipboardData?.getData("text") || "";
+    const code = normalizeSignInCode(text);
+    if (!code) return;
+    event.preventDefault();
+    fillSignInCodeDigits(code, code.length);
+  }
   function setSignInLoggedIn(loggedIn) {
     const accountMode = elements.signinPanel?.dataset.mode === "account";
     if (elements.signinPanel) elements.signinPanel.dataset.loggedIn = loggedIn ? "true" : "false";
@@ -648,7 +715,7 @@
     if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = !loggedIn;
     if (loggedIn && elements.signinPanel && !elements.signinPanel.hidden) {
       warmSignInPosition({ silent: true });
-      requestAnimationFrame(() => elements.signInCodeInput?.focus());
+      requestAnimationFrame(focusSignInCode);
     }
   }
 
@@ -774,7 +841,7 @@
           button: "#signInCaptchaTrigger",
           captchaVerifyCallback: handleSignInCaptchaVerify,
           onBizResultCallback: (passed) => {
-            if (passed && elements.signInCodeInput) elements.signInCodeInput.value = "";
+            if (passed) clearSignInCode();
           },
           getInstance: () => {
             signInCaptchaReady = true;
@@ -898,7 +965,7 @@
   }
 
   async function handleSignInCaptchaVerify(captchaVerifyParam) {
-    const code = elements.signInCodeInput?.value.trim() || "";
+    const code = readSignInCode();
     if (!code) {
       finishSignInSubmit();
       setSignInStatus("请输入密令。", "warn");
@@ -916,7 +983,7 @@
       if (response.ok && data?.ok) {
         finishSignInSubmit();
         setSignInStatus(data?.message || "签到成功。", "ok");
-        if (elements.signInCodeInput) elements.signInCodeInput.value = "";
+        clearSignInCode();
         return { captchaResult: true, bizResult: true };
       }
       const message = signInResultMessage(data);
@@ -932,10 +999,10 @@
   }
 
   async function submitSignInCode() {
-    const code = elements.signInCodeInput?.value.trim() || "";
+    const code = readSignInCode();
     if (!code) {
       setSignInStatus("请输入密令。", "warn");
-      elements.signInCodeInput?.focus();
+      focusSignInCode();
       return;
     }
     if (elements.signInSubmitBtn?.disabled) return;
@@ -1641,6 +1708,13 @@
   elements.signInSubmitBtn?.addEventListener("click", submitSignInCode);
   elements.signInCodeInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") submitSignInCode();
+  });
+  elements.signInCodeInput?.addEventListener("input", () => updateSignInCodeBoxes());
+  elements.signInCodeDigits?.forEach((input, index) => {
+    input.addEventListener("input", (event) => handleSignInCodeDigitInput(event, index));
+    input.addEventListener("keydown", (event) => handleSignInCodeDigitKeydown(event, index));
+    input.addEventListener("paste", handleSignInCodeDigitPaste);
+    input.addEventListener("focus", () => input.select());
   });
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);

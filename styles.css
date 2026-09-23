@@ -2225,3 +2225,172 @@ body {
   background: #fef2f2;
   color: #b42318;
 }
+
+/* Centered translucent modal polish. */
+.sheet-backdrop,
+.signin-backdrop,
+.week-picker-backdrop {
+  background: rgba(15, 23, 42, 0.34) !important;
+  backdrop-filter: blur(4px) saturate(0.9) !important;
+  -webkit-backdrop-filter: blur(4px) saturate(0.9) !important;
+}
+
+.bottom-sheet {
+  top: 50% !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: min(520px, calc(100vw - 40px)) !important;
+  max-height: min(72svh, 620px) !important;
+  overflow-y: auto !important;
+  padding: 22px !important;
+  border: 1px solid rgba(255, 255, 255, 0.62) !important;
+  border-radius: 30px !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25) !important;
+  transform: translate(-50%, -50%) !important;
+  backdrop-filter: blur(18px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+}
+
+.sheet-handle {
+  display: none !important;
+}
+
+.detail-card {
+  padding: 4px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.detail-title {
+  margin-bottom: 18px !important;
+}
+
+.detail-accent {
+  display: none !important;
+}
+
+.detail-title h3 {
+  font-size: 22px !important;
+  line-height: 1.35 !important;
+  font-weight: 820 !important;
+}
+
+.detail-row {
+  grid-template-columns: 54px minmax(0, 1fr) !important;
+  gap: 14px !important;
+  padding: 9px 0 !important;
+  font-size: 17px !important;
+  line-height: 1.45 !important;
+}
+
+.detail-row span:first-child {
+  color: var(--accent) !important;
+  font-weight: 780 !important;
+}
+
+.signin-panel {
+  top: 50% !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: min(520px, calc(100vw - 40px)) !important;
+  max-height: min(76svh, 650px) !important;
+  overflow-y: auto !important;
+  padding: 22px !important;
+  border: 1px solid rgba(255, 255, 255, 0.62) !important;
+  border-radius: 30px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25) !important;
+  transform: translate(-50%, -50%) !important;
+  backdrop-filter: blur(18px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+}
+
+.week-picker-backdrop {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+}
+
+.week-picker-sheet {
+  width: min(520px, calc(100vw - 40px)) !important;
+  max-height: min(58svh, 420px) !important;
+  padding: 18px !important;
+  border: 1px solid rgba(255, 255, 255, 0.62) !important;
+  border-radius: 28px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25) !important;
+  transform: translateY(10px) scale(0.98) !important;
+  backdrop-filter: blur(18px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+}
+
+.week-picker-backdrop.open .week-picker-sheet {
+  transform: translateY(0) scale(1) !important;
+}
+
+.dialog-card {
+  border: 1px solid rgba(255, 255, 255, 0.62) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25) !important;
+  backdrop-filter: blur(18px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+}
+
+.dialog::backdrop {
+  background: rgba(15, 23, 42, 0.34) !important;
+  backdrop-filter: blur(4px) saturate(0.9) !important;
+  -webkit-backdrop-filter: blur(4px) saturate(0.9) !important;
+}
+
+.signin-code-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.signin-code-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.signin-code-digit {
+  width: 100% !important;
+  height: 58px !important;
+  padding: 0 !important;
+  border-radius: 18px !important;
+  text-align: center !important;
+  font-size: 26px !important;
+  font-weight: 760 !important;
+  letter-spacing: 0 !important;
+}
+
+@media (max-width: 520px) {
+  .bottom-sheet,
+  .signin-panel {
+    width: calc(100vw - 40px) !important;
+    max-height: min(74svh, 620px) !important;
+    padding: 20px !important;
+    border-radius: 28px !important;
+  }
+
+  .signin-panel:focus-within {
+    top: 42% !important;
+  }
+
+  .signin-code-grid {
+    gap: 8px;
+  }
+
+  .signin-code-digit {
+    height: 54px !important;
+    border-radius: 16px !important;
+    font-size: 24px !important;
+  }
+}
