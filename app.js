@@ -659,8 +659,9 @@
   }
 
   function readSignInCode() {
+    const hasDigitBoxes = Boolean(elements.signInCodeDigits?.length);
     const fromBoxes = elements.signInCodeDigits?.map((input) => normalizeSignInCode(input.value).slice(-1)).join("") || "";
-    return updateSignInCodeBoxes(fromBoxes || elements.signInCodeInput?.value || "");
+    return updateSignInCodeBoxes(hasDigitBoxes ? fromBoxes : elements.signInCodeInput?.value || "");
   }
 
   function clearSignInCode() {
@@ -1758,7 +1759,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-23").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-24").catch(() => {});
     });
   }
 

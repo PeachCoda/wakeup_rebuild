@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-35" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-36" />
   </head>
   <body>
     <div class="app-shell">
@@ -108,12 +108,12 @@
       </div>
       <label class="signin-field signin-code-field" id="signInCodeField" hidden>
         <span>密令</span>
-        <input id="signInCodeInput" class="signin-code-hidden" inputmode="numeric" autocomplete="one-time-code" maxlength="4" />
+        <input id="signInCodeInput" class="signin-code-hidden" inputmode="numeric" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="4" name="fakeup-code-shadow" readonly tabindex="-1" />
         <div class="signin-code-grid" id="signInCodeGrid" aria-label="输入四位密令">
-          <input class="signin-code-digit" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="密令第 1 位" />
-          <input class="signin-code-digit" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="密令第 2 位" />
-          <input class="signin-code-digit" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="密令第 3 位" />
-          <input class="signin-code-digit" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="密令第 4 位" />
+          <input class="signin-code-digit" type="tel" inputmode="numeric" enterkeyhint="done" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" pattern="[0-9]*" maxlength="1" name="fakeup-code-1" aria-label="密令第 1 位" />
+          <input class="signin-code-digit" type="tel" inputmode="numeric" enterkeyhint="done" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" pattern="[0-9]*" maxlength="1" name="fakeup-code-2" aria-label="密令第 2 位" />
+          <input class="signin-code-digit" type="tel" inputmode="numeric" enterkeyhint="done" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" pattern="[0-9]*" maxlength="1" name="fakeup-code-3" aria-label="密令第 3 位" />
+          <input class="signin-code-digit" type="tel" inputmode="numeric" enterkeyhint="done" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" pattern="[0-9]*" maxlength="1" name="fakeup-code-4" aria-label="密令第 4 位" />
         </div>
       </label>
       <div class="signin-captcha" id="signInCaptcha" aria-hidden="true"></div>
@@ -164,7 +164,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-skl-71"></script>
+    <script src="./app.js?v=fakeup-skl-72"></script>
   </body>
 </html>
 
