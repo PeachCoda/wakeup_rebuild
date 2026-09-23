@@ -1030,6 +1030,17 @@
         return { promise, resolve, reject };
       };
     }
+    if (!Number.prototype.toHex) {
+      Object.defineProperty(Number.prototype, "toHex", {
+        value: function toHex() {
+          const value = Number(this);
+          if (!Number.isFinite(value)) return "00";
+          return Math.max(0, value >>> 0).toString(16).padStart(2, "0");
+        },
+        configurable: true,
+        writable: true
+      });
+    }
   }
 
   async function loadPdfJs() {
