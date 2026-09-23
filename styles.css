@@ -2660,3 +2660,16 @@ body {
     border-radius: 13px;
   }
 }
+
+/* Auto-submit sign-in keeps the panel compact. */
+.signin-actions-single:has(#signInSubmitBtn[hidden]) {
+  display: none !important;
+}
+
+.signin-keypad {
+  margin-bottom: 0 !important;
+}
+
+.signin-panel[data-logged-in="true"] .signin-actions-single {
+  display: none !important;
+}

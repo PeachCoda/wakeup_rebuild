@@ -92,6 +92,7 @@
   let signInPositionCacheAt = 0;
   let signInPositionPending = null;
   let signInAccountLoggedIn = false;
+  let signInAutoSubmitTimer = null;
   function createDefaultState() {
     const scheduleId = uid();
     return {
@@ -666,6 +667,7 @@
   }
 
   function clearSignInCode() {
+    window.clearTimeout(signInAutoSubmitTimer);
     if (elements.signInCodeInput) elements.signInCodeInput.value = "";
     updateSignInCodeDisplay("");
   }
@@ -674,13 +676,24 @@
     updateModalViewportVars();
   }
 
+  function scheduleSignInAutoSubmit(code) {
+    if (code.length !== 4 || elements.signInSubmitBtn?.disabled) return;
+    window.clearTimeout(signInAutoSubmitTimer);
+    signInAutoSubmitTimer = window.setTimeout(() => {
+      signInAutoSubmitTimer = null;
+      if (readSignInCode().length === 4) submitSignInCode();
+    }, 120);
+  }
+
   function pushSignInCodeDigit(digit) {
     const current = readSignInCode();
     if (current.length >= 4) return;
-    updateSignInCodeDisplay(`${current}${normalizeSignInCode(digit).slice(0, 1)}`);
+    const next = updateSignInCodeDisplay(`${current}${normalizeSignInCode(digit).slice(0, 1)}`);
+    scheduleSignInAutoSubmit(next);
   }
 
   function popSignInCodeDigit() {
+    window.clearTimeout(signInAutoSubmitTimer);
     const current = readSignInCode();
     updateSignInCodeDisplay(current.slice(0, -1));
   }
@@ -723,7 +736,7 @@
     if (elements.signInAccountLoginBtn) elements.signInAccountLoginBtn.hidden = Boolean(loggedIn);
     if (elements.signInCodeField) elements.signInCodeField.hidden = !loggedIn;
     if (elements.signInLocationStatus) elements.signInLocationStatus.hidden = !loggedIn;
-    if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = !loggedIn;
+    if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = true;
     if (loggedIn && elements.signinPanel && !elements.signinPanel.hidden) {
       warmSignInPosition({ silent: true });
       requestAnimationFrame(focusSignInCode);
@@ -1736,7 +1749,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-25").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-26").catch(() => {});
     });
   }
 
