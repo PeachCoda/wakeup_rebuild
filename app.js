@@ -73,7 +73,8 @@
     signInUsernameInput: document.querySelector("#signInUsernameInput"),
     signInPasswordInput: document.querySelector("#signInPasswordInput"),
     signInCodeInput: document.querySelector("#signInCodeInput"),
-    signInCodeDigits: Array.from(document.querySelectorAll(".signin-code-digit")),
+    signInCodeSlots: Array.from(document.querySelectorAll(".signin-code-slot")),
+    signInKeypad: document.querySelector("#signInKeypad"),
     signInCaptcha: document.querySelector("#signInCaptcha"),
     signInCaptchaTrigger: document.querySelector("#signInCaptchaTrigger"),
     closeSignInBtn: document.querySelector("#closeSignInBtn"),
@@ -649,74 +650,62 @@
     return String(value || "").replace(/\D/g, "").slice(0, 4);
   }
 
-  function updateSignInCodeBoxes(value = elements.signInCodeInput?.value || "") {
+  function updateSignInCodeDisplay(value = elements.signInCodeInput?.value || "") {
     const code = normalizeSignInCode(value);
     if (elements.signInCodeInput && elements.signInCodeInput.value !== code) elements.signInCodeInput.value = code;
-    elements.signInCodeDigits?.forEach((input, index) => {
-      input.value = code[index] || "";
+    elements.signInCodeSlots?.forEach((slot, index) => {
+      const digit = code[index] || "";
+      slot.textContent = digit;
+      slot.classList.toggle("filled", Boolean(digit));
     });
     return code;
   }
 
   function readSignInCode() {
-    const hasDigitBoxes = Boolean(elements.signInCodeDigits?.length);
-    const fromBoxes = elements.signInCodeDigits?.map((input) => normalizeSignInCode(input.value).slice(-1)).join("") || "";
-    return updateSignInCodeBoxes(hasDigitBoxes ? fromBoxes : elements.signInCodeInput?.value || "");
+    return updateSignInCodeDisplay(elements.signInCodeInput?.value || "");
   }
 
   function clearSignInCode() {
     if (elements.signInCodeInput) elements.signInCodeInput.value = "";
-    updateSignInCodeBoxes("");
+    updateSignInCodeDisplay("");
   }
 
   function focusSignInCode() {
-    const target = elements.signInCodeDigits?.find((input) => !input.value) || elements.signInCodeDigits?.[0] || elements.signInCodeInput;
-    target?.focus();
     updateModalViewportVars();
-    window.setTimeout(updateModalViewportVars, 80);
-    window.setTimeout(updateModalViewportVars, 260);
   }
 
-  function fillSignInCodeDigits(value, focusIndex = 0) {
-    const code = updateSignInCodeBoxes(value);
-    const nextIndex = Math.min(code.length, Math.max(0, focusIndex));
-    const target = elements.signInCodeDigits?.[nextIndex] || elements.signInCodeDigits?.[elements.signInCodeDigits.length - 1];
-    target?.focus();
-    updateModalViewportVars();
-    window.setTimeout(updateModalViewportVars, 80);
-    window.setTimeout(updateModalViewportVars, 260);
-    return code;
+  function pushSignInCodeDigit(digit) {
+    const current = readSignInCode();
+    if (current.length >= 4) return;
+    updateSignInCodeDisplay(`${current}${normalizeSignInCode(digit).slice(0, 1)}`);
   }
 
-  function handleSignInCodeDigitInput(event, index) {
-    const digits = normalizeSignInCode(event.target.value);
-    if (digits.length > 1) {
-      fillSignInCodeDigits(digits, digits.length);
-      return;
-    }
-    event.target.value = digits;
-    readSignInCode();
-    if (digits && index < elements.signInCodeDigits.length - 1) elements.signInCodeDigits[index + 1]?.focus();
+  function popSignInCodeDigit() {
+    const current = readSignInCode();
+    updateSignInCodeDisplay(current.slice(0, -1));
   }
 
-  function handleSignInCodeDigitKeydown(event, index) {
-    if (event.key === "Enter") {
+  function handleSignInKeypadClick(event) {
+    const button = event.target.closest("button");
+    if (!button) return;
+    const digit = button.dataset.codeKey;
+    const action = button.dataset.codeAction;
+    if (digit !== undefined) pushSignInCodeDigit(digit);
+    if (action === "backspace") popSignInCodeDigit();
+    if (action === "clear") clearSignInCode();
+  }
+
+  function handleSignInPanelKeydown(event) {
+    if (elements.signinPanel?.hidden || elements.signinPanel?.dataset.loggedIn !== "true") return;
+    if (/^\d$/.test(event.key)) {
+      event.preventDefault();
+      pushSignInCodeDigit(event.key);
+    } else if (event.key === "Backspace") {
+      event.preventDefault();
+      popSignInCodeDigit();
+    } else if (event.key === "Enter") {
       submitSignInCode();
-      return;
     }
-    if (event.key === "Backspace" && !event.target.value && index > 0) {
-      elements.signInCodeDigits[index - 1].value = "";
-      elements.signInCodeDigits[index - 1].focus();
-      readSignInCode();
-    }
-  }
-
-  function handleSignInCodeDigitPaste(event) {
-    const text = event.clipboardData?.getData("text") || "";
-    const code = normalizeSignInCode(text);
-    if (!code) return;
-    event.preventDefault();
-    fillSignInCodeDigits(code, code.length);
   }
   function setSignInLoggedIn(loggedIn) {
     const accountMode = elements.signinPanel?.dataset.mode === "account";
@@ -1731,20 +1720,8 @@
   elements.signinBackdrop?.addEventListener("click", closeSignInPanel);
   elements.signInAccountLoginBtn?.addEventListener("click", loginSignInAccount);
   elements.signInSubmitBtn?.addEventListener("click", submitSignInCode);
-  elements.signInCodeInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") submitSignInCode();
-  });
-  elements.signInCodeInput?.addEventListener("input", () => updateSignInCodeBoxes());
-  elements.signInCodeDigits?.forEach((input, index) => {
-    input.addEventListener("input", (event) => handleSignInCodeDigitInput(event, index));
-    input.addEventListener("keydown", (event) => handleSignInCodeDigitKeydown(event, index));
-    input.addEventListener("paste", handleSignInCodeDigitPaste);
-    input.addEventListener("focus", () => {
-      input.select();
-      updateModalViewportVars();
-      window.setTimeout(updateModalViewportVars, 220);
-    });
-  });
+  elements.signInKeypad?.addEventListener("click", handleSignInKeypadClick);
+  elements.signinPanel?.addEventListener("keydown", handleSignInPanelKeydown);
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
   elements.newScheduleBtn.addEventListener("click", createNewSchedule);
@@ -1759,7 +1736,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-24").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-25").catch(() => {});
     });
   }
 
