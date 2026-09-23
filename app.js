@@ -42,6 +42,7 @@
     dateRangeText: document.querySelector("#dateRangeText"),
     weekStrip: document.querySelector("#weekStrip"),
     timetable: document.querySelector("#timetable"),
+    appShell: document.querySelector(".app-shell"),
     pageBackground: document.querySelector("#pageBackground"),
     prevWeekBtn: document.querySelector("#prevWeekBtn"),
     nextWeekBtn: document.querySelector("#nextWeekBtn"),
@@ -239,8 +240,12 @@
 
   function applyScheduleBackground(schedule) {
     const value = schedule?.backgroundImage || "";
+    const image = value ? `url(${JSON.stringify(value)})` : "";
     if (elements.pageBackground) {
-      elements.pageBackground.style.backgroundImage = value ? `url(${JSON.stringify(value)})` : "";
+      elements.pageBackground.style.backgroundImage = image;
+    }
+    if (elements.appShell) {
+      elements.appShell.style.backgroundImage = value ? `linear-gradient(rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.34)), ${image}` : "";
     }
     document.documentElement.classList.toggle("has-custom-bg", Boolean(value));
   }
@@ -1875,7 +1880,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-29").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-30").catch(() => {});
     });
   }
 

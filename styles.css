@@ -2699,11 +2699,13 @@ html.has-custom-bg .page-background {
 }
 
 html.has-custom-bg .app-shell {
-  background: rgba(255, 255, 255, 0.68) !important;
+  background-color: rgba(255, 255, 255, 0.68) !important;
+  background-size: cover;
+  background-position: center;
 }
 
 html.has-custom-bg .main {
-  background: rgba(255, 255, 255, 0.56) !important;
+  background: rgba(255, 255, 255, 0.48) !important;
 }
 
 html.has-custom-bg .topbar,
@@ -2713,13 +2715,17 @@ html.has-custom-bg .week-strip {
   -webkit-backdrop-filter: blur(14px);
 }
 
+html.has-custom-bg .timetable-wrap {
+  background: rgba(255, 255, 255, 0.22) !important;
+}
+
 html.has-custom-bg .timetable {
-  background: rgba(255, 255, 255, 0.36) !important;
+  background: rgba(255, 255, 255, 0.20) !important;
 }
 
 html.has-custom-bg .time-cell,
 html.has-custom-bg .grid-cell {
-  background-color: rgba(255, 255, 255, 0.16);
+  background-color: rgba(255, 255, 255, 0.10) !important;
 }
 
 html.has-custom-bg .course-card {
