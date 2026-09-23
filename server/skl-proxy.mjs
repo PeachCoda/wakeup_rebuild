@@ -407,8 +407,6 @@ async function loginToSkl(username, password) {
   return { token, user: probe.body.user };
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 function parseISODateUTC(value) {
   const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return null;
@@ -428,6 +426,21 @@ function weekdayFromISO(value) {
   if (!date) return 1;
   const day = date.getUTCDay();
   return day === 0 ? 7 : day;
+}
+
+function normalizeWeekday(value, fallback) {
+  const number = Number(value);
+  if (Number.isFinite(number)) {
+    if (number >= 1 && number <= 7) return number;
+    if (number === 0) return 7;
+  }
+  const text = String(value || "");
+  const match = text.match(/[一二三四五六日天]/);
+  if (match) {
+    const index = "一二三四五六日天".indexOf(match[0]);
+    return index >= 6 ? 7 : index + 1;
+  }
+  return fallback;
 }
 
 function pickField(source, keys) {
@@ -473,7 +486,7 @@ function normalizeSklCourse(raw, date, week) {
   if (!end) end = start;
   return {
     name,
-    day: weekdayFromISO(date),
+    day: normalizeWeekday(pickField(raw, ["weekDay", "weekday", "dayOfWeek", "xq", "xqj", "week"]), weekdayFromISO(date)),
     start: Math.max(1, Math.min(13, start)),
     end: Math.max(start, Math.min(13, end)),
     weeks: [week],
@@ -572,7 +585,6 @@ async function syncScheduleFromSkl(req) {
   const startDate = String(body.startDate || "").trim();
   if (!parseISODateUTC(startDate)) return { status: 400, body: { ok: false, message: "缺少有效的学期开始日期" } };
   const weeks = Math.max(1, Math.min(25, Number(body.weeks) || 17));
-  const totalDays = weeks * 7;
   let token;
   try {
     token = (await tokenForRecord(session.record)).token;
@@ -580,13 +592,12 @@ async function syncScheduleFromSkl(req) {
     return { status: 401, body: { ok: false, message: error?.message || "请重新登录上课啦账号" } };
   }
   const allCourses = [];
-  const concurrency = 5;
+  const concurrency = 4;
   try {
-    for (let base = 0; base < totalDays; base += concurrency) {
-      const offsets = Array.from({ length: Math.min(concurrency, totalDays - base) }, (_, index) => base + index);
-      const batches = await Promise.all(offsets.map((offset) => {
-        const date = addDaysISO(startDate, offset);
-        const week = Math.floor(offset / 7) + 1;
+    for (let baseWeek = 1; baseWeek <= weeks; baseWeek += concurrency) {
+      const weekNumbers = Array.from({ length: Math.min(concurrency, weeks - baseWeek + 1) }, (_, index) => baseWeek + index);
+      const batches = await Promise.all(weekNumbers.map((week) => {
+        const date = addDaysISO(startDate, (week - 1) * 7);
         return fetchSklCoursesForDate(token, date, week, body);
       }));
       for (const courses of batches) allCourses.push(...courses);
