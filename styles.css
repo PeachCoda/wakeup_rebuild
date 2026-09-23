@@ -1524,10 +1524,11 @@ body {
 }
 
 .topbar-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 30;
+  position: fixed;
+  top: 92px;
+  left: auto;
+  right: 12px;
+  z-index: 5000;
   width: max-content;
   min-width: 178px;
   padding: 8px;
@@ -1535,6 +1536,8 @@ body {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .topbar-menu[hidden] {
@@ -2725,5 +2728,18 @@ html.has-custom-bg .course-card {
 }
 
 .topbar-menu {
-  z-index: 2000 !important;
+  z-index: 5000 !important;
+}
+
+/* Keep the menu above the timetable regardless of scroll-layer paint order. */
+.topbar {
+  position: relative;
+  z-index: 3000;
+}
+
+.week-strip,
+.timetable-wrap,
+.timetable {
+  position: relative;
+  z-index: 1;
 }

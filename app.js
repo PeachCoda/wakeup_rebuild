@@ -534,6 +534,7 @@
   function openTopbarMenu() {
     if (!elements.topbarMenu || !elements.topbarMenuBtn) return;
     elements.topbarMenu.hidden = false;
+    positionTopbarMenu();
     elements.topbarMenuBtn.setAttribute("aria-expanded", "true");
   }
 
@@ -541,6 +542,18 @@
     if (!elements.topbarMenu || !elements.topbarMenuBtn) return;
     elements.topbarMenu.hidden = true;
     elements.topbarMenuBtn.setAttribute("aria-expanded", "false");
+  }
+
+  function positionTopbarMenu() {
+    if (!elements.topbarMenu || !elements.topbarMenuBtn || elements.topbarMenu.hidden) return;
+    const rect = elements.topbarMenuBtn.getBoundingClientRect();
+    const menuWidth = elements.topbarMenu.offsetWidth || 190;
+    const gap = 8;
+    const top = Math.max(8, rect.bottom + gap);
+    const left = clamp(rect.right - menuWidth, 8, window.innerWidth - menuWidth - 8);
+    elements.topbarMenu.style.top = `${Math.round(top)}px`;
+    elements.topbarMenu.style.left = `${Math.round(left)}px`;
+    elements.topbarMenu.style.right = "auto";
   }
 
   function toggleTopbarMenu() {
@@ -1825,9 +1838,18 @@
   });
   elements.topbarMenu?.addEventListener("click", (event) => event.stopPropagation());
   document.addEventListener("click", closeTopbarMenu);
-  window.visualViewport?.addEventListener("resize", updateModalViewportVars);
-  window.visualViewport?.addEventListener("scroll", updateModalViewportVars);
-  window.addEventListener("resize", updateModalViewportVars);
+  window.visualViewport?.addEventListener("resize", () => {
+    updateModalViewportVars();
+    positionTopbarMenu();
+  });
+  window.visualViewport?.addEventListener("scroll", () => {
+    updateModalViewportVars();
+    positionTopbarMenu();
+  });
+  window.addEventListener("resize", () => {
+    updateModalViewportVars();
+    positionTopbarMenu();
+  });
 
   elements.openAccountBtn?.addEventListener("click", () => openSignInPanel(signInAccountLoggedIn ? "signin" : "account"));
   elements.syncSklScheduleBtn?.addEventListener("click", syncSklSchedule);
@@ -1853,7 +1875,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-28").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-29").catch(() => {});
     });
   }
 
