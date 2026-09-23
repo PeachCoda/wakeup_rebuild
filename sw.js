@@ -1,9 +1,9 @@
-const CACHE_NAME = "fakeup-shell-v45";
+const CACHE_NAME = "fakeup-shell-v46";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=fakeup-ui-32",
-  "./app.js?v=fakeup-skl-68",
+  "./styles.css?v=fakeup-ui-33",
+  "./app.js?v=fakeup-skl-69",
   "./manifest.json",
   "./favicon.ico?v=fakeup-icon-3",
   "./assets/icon-192.png?v=fakeup-icon-3",

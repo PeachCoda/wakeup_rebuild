@@ -831,7 +831,7 @@
   function signInLocationErrorMessage(error) {
     if (error?.code === 1) return "定位：未授权";
     if (error?.code === 2) return "定位：暂时不可用";
-    if (error?.code === 3) return "定位：获取超时";
+    if (error?.code === 3) return "定位：仍在获取";
     return "定位：未获取";
   }
 
@@ -849,7 +849,9 @@
       signInPositionPending = readSignInPosition({ enableHighAccuracy: false, timeout: 6000, maximumAge: 30 * 60 * 1000 })
         .catch((error) => {
           const message = signInLocationErrorMessage(error);
-          setSignInLocationStatus(`${message}，可继续尝试提交`, error?.code === 1 ? "bad" : "warn");
+          const tone = error?.code === 1 ? "bad" : "warn";
+          const suffix = error?.code === 1 ? "，请允许定位" : "，可先提交";
+          setSignInLocationStatus(`${message}${suffix}`, tone);
           if (!options.silent && error?.code === 1) throw new Error("需要允许定位后才能签到");
           return null;
         })
@@ -877,11 +879,11 @@
         new Promise((resolve) => window.setTimeout(() => resolve(null), options.quick ? 1800 : 4000))
       ]);
       if (warmed) return warmed;
-      setSignInLocationStatus("定位：还在获取，先尝试提交", "warn");
+      setSignInLocationStatus("定位：仍在获取，可先提交", "warn");
       return emptySignInPosition();
     } catch (error) {
       if (error?.code === 1 || /允许定位/.test(error?.message || "")) throw new Error("需要允许定位后才能签到");
-      setSignInLocationStatus("定位：暂时没返回，先尝试提交", "warn");
+      setSignInLocationStatus("定位：暂时没返回，可先提交", "warn");
       return emptySignInPosition();
     }
   }
