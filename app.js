@@ -995,6 +995,7 @@
   }
 
   async function importPdfFile(file) {
+    closeTopbarMenu();
     if (!file) return;
     if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
       showToast("请选择教务系统导出的 PDF 文件");
@@ -2554,9 +2555,8 @@
   });
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
-  elements.openImportBtn.addEventListener("click", () => {
-    closeTopbarMenu();
-    elements.pdfFileInput?.click();
+  elements.openImportBtn?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") elements.pdfFileInput?.click();
   });
   elements.newScheduleBtn.addEventListener("click", createNewSchedule);
   elements.saveSettingsBtn.addEventListener("click", saveSettingsFromDialog);

@@ -1576,6 +1576,23 @@ body {
   white-space: nowrap;
 }
 
+
+.topbar-menu .file-menu-row {
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.file-menu-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 100px;
+}
+
 .topbar-menu .menu-row:hover {
   background: var(--accent-soft);
   transform: none;
