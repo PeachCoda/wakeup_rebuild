@@ -1047,7 +1047,7 @@
       applyImportedCourses(data.courses, { startDate: data.startDate });
       showToast(`已同步 ${currentSchedule().courses.length} 门课程`);
     } catch (error) {
-      showToast(error?.message || "同步上课啦课表失败");
+      showToast(error?.message ? `同步失败：${error.message}` : "同步上课啦课表失败");
     }
   }
 
@@ -1128,6 +1128,10 @@
       .trim();
   }
 
+  function isLegendText(value) {
+    const source = cleanCourseText(value);
+    return /(?:注[:：]|注意|提示|说明|红色斜体|蓝色为已选|待筛选|已选上|请选择记录)/.test(source);
+  }
   function isCourseNoiseLine(value) {
     const source = cleanCourseText(value);
     if (!source) return true;
