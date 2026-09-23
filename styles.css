@@ -2929,3 +2929,153 @@ html.has-custom-bg .course-card {
   background: var(--accent);
   box-shadow: 0 6px 18px rgba(25, 118, 223, 0.24);
 }
+
+/* Sticky translucent timetable header. */
+:root {
+  --sticky-topbar-height: 64px;
+  --sticky-week-height: 56px;
+}
+
+.topbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 4200 !important;
+  min-height: var(--sticky-topbar-height) !important;
+  padding: 8px 12px !important;
+  background: rgba(255, 255, 255, 0.76) !important;
+  backdrop-filter: blur(16px) saturate(1.05) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.05) !important;
+}
+
+.week-strip {
+  position: sticky !important;
+  top: var(--sticky-topbar-height) !important;
+  z-index: 4100 !important;
+  height: var(--sticky-week-height) !important;
+  background: rgba(255, 255, 255, 0.68) !important;
+  backdrop-filter: blur(16px) saturate(1.05) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.05) !important;
+}
+
+#weekTitle {
+  font-size: 24px !important;
+  line-height: 1.04 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.week-chevron {
+  margin-top: 2px !important;
+  font-size: 18px !important;
+}
+
+#dateRangeText {
+  margin-top: 1px !important;
+  font-size: 12px !important;
+}
+
+.account-button {
+  height: 31px !important;
+  min-width: 48px !important;
+  padding-inline: 11px !important;
+  font-size: 13px !important;
+}
+
+.menu-button {
+  width: 36px !important;
+  height: 36px !important;
+  gap: 4px !important;
+}
+
+.menu-button span {
+  width: 17px !important;
+}
+
+.day-cell strong {
+  font-size: 14px !important;
+}
+
+.day-cell .day-pill {
+  min-width: 28px !important;
+  min-height: 34px !important;
+  border-radius: 12px !important;
+}
+
+.day-cell span {
+  font-size: 17px !important;
+}
+
+.month-cell {
+  font-size: 13px !important;
+}
+
+.timetable-wrap,
+.timetable {
+  z-index: 1 !important;
+}
+
+html.has-custom-bg .topbar,
+html.has-custom-bg .week-strip {
+  background: rgba(255, 255, 255, var(--bg-panel-alpha, 0.68)) !important;
+}
+
+html.has-custom-bg .app-shell {
+  background-image: none !important;
+}
+
+/* App-locked layout: only the timetable grid scrolls. */
+html,
+body {
+  height: 100% !important;
+  min-height: 100% !important;
+  overflow: hidden !important;
+}
+
+body {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+}
+
+.app-shell {
+  height: 100svh !important;
+  min-height: 100svh !important;
+  max-height: 100svh !important;
+  overflow: hidden !important;
+}
+
+.main {
+  height: 100svh !important;
+  min-height: 0 !important;
+  max-height: 100svh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.topbar {
+  position: relative !important;
+  top: auto !important;
+  flex: 0 0 auto !important;
+  z-index: 4200 !important;
+}
+
+.week-strip {
+  position: relative !important;
+  top: auto !important;
+  flex: 0 0 var(--sticky-week-height) !important;
+  z-index: 4100 !important;
+}
+
+.timetable-wrap {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.timetable {
+  min-height: calc(var(--cell-height) * 13) !important;
+}

@@ -1958,7 +1958,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-32").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-34").catch(() => {});
     });
   }
 
