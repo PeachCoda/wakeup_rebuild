@@ -1011,17 +1011,44 @@
       applyImportedCourses(result.courses);
     } catch (error) {
       console.error(error);
-      showToast("PDF 解析失败，请重新导出 PDF 后再试");
+      const message = error?.message ? `PDF 解析失败：${error.message}` : "PDF 解析失败，请重新导出 PDF 后再试";
+      showToast(message.length > 42 ? "PDF 解析失败，请重新导出 PDF 后再试" : message);
     } finally {
       if (elements.pdfFileInput) elements.pdfFileInput.value = "";
     }
   }
 
+  function ensurePdfCompatibility() {
+    if (!Promise.withResolvers) {
+      Promise.withResolvers = function withResolvers() {
+        let resolve;
+        let reject;
+        const promise = new Promise((res, rej) => {
+          resolve = res;
+          reject = rej;
+        });
+        return { promise, resolve, reject };
+      };
+    }
+  }
+
   async function loadPdfJs() {
+    ensurePdfCompatibility();
     if (window.pdfjsLib?.getDocument) return window.pdfjsLib;
     const module = await import("./assets/pdfjs/pdf.min.js");
-    module.GlobalWorkerOptions.workerSrc = "./assets/pdfjs/pdf.worker.min.js";
-    return module;
+    const pdfjsLib = window.pdfjsLib?.getDocument ? window.pdfjsLib : module;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "./assets/pdfjs/pdf.worker.min.js";
+    return pdfjsLib;
+  }
+
+  function readFileAsArrayBuffer(file) {
+    if (file?.arrayBuffer) return file.arrayBuffer();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error("文件读取失败"));
+      reader.readAsArrayBuffer(file);
+    });
   }
 
   async function parseHduPdf(file) {
@@ -1030,13 +1057,14 @@
 
   async function parseHduPdfDocument(file) {
     const pdfjsLib = await loadPdfJs();
-    const data = new Uint8Array(await file.arrayBuffer());
+    const data = new Uint8Array(await readFileAsArrayBuffer(file));
     const pdf = await pdfjsLib.getDocument({
       data,
       cMapUrl: "./assets/pdfjs/cmaps/",
       cMapPacked: true,
       standardFontDataUrl: "./assets/pdfjs/standard_fonts/",
-      useWorkerFetch: false
+      useWorkerFetch: false,
+      disableWorker: true
     }).promise;
     const courses = [];
     const cellRecords = [];
