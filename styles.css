@@ -2155,3 +2155,38 @@ body {
 .signin-actions button[hidden] {
   display: none !important;
 }
+
+
+.account-button {
+  min-width: 52px;
+  max-width: 108px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(33, 126, 232, 0.18);
+  border-radius: 999px;
+  background: rgba(219, 234, 254, 0.72);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 760;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-button:active,
+.detail-signin-button:active {
+  transform: translateY(1px);
+}
+
+.detail-signin-button {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 760;
+  box-shadow: 0 10px 24px rgba(25, 118, 223, 0.18);
+}

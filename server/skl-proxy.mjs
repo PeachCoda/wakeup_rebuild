@@ -567,11 +567,30 @@ function mergeSklCourseWeeks(courses) {
   return Array.from(groups.values()).map((course) => ({ ...course, weeks: course.weeks.sort((a, b) => a - b) }));
 }
 
-async function fetchSklCoursesForDate(token, date, week, body) {
+function payloadWeek(payload) {
+  const direct = Number(pickField(payload, ["week", "Week"]));
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const nested = Number(pickField(payload?.data, ["week", "Week"]));
+  return Number.isFinite(nested) && nested > 0 ? nested : 0;
+}
+
+async function fetchSklCoursePayload(token, date, body) {
   const resp = await sklRequest({ path: "/api/course", query: { startTime: date }, token, userAgent: body.userAgent });
   if (resp.status === 401) throw Object.assign(new Error("上课啦登录态无效或已过期"), { status: 401 });
   if (resp.status >= 500) throw Object.assign(new Error("上课啦课程接口暂时不可用"), { status: 502 });
-  return courseListFromSklPayload(resp.json).map((course) => normalizeSklCourse(course, date, week)).filter(Boolean);
+  return resp.json;
+}
+
+function deriveTermStartDate(probeDate, currentWeek) {
+  const date = parseISODateUTC(probeDate);
+  if (!date || !currentWeek) return "";
+  const offset = (currentWeek - 1) * 7 + (weekdayFromISO(probeDate) - 1);
+  return addDaysISO(probeDate, -offset);
+}
+
+async function fetchSklCoursesForDate(token, date, week, body) {
+  const payload = await fetchSklCoursePayload(token, date, body);
+  return courseListFromSklPayload(payload).map((course) => normalizeSklCourse(course, date, week)).filter(Boolean);
 }
 
 async function todayCoursesForToken(token, body = {}) {
@@ -640,8 +659,8 @@ async function syncScheduleFromSkl(req) {
   const session = getSession(req);
   if (!session) return { status: 401, body: { ok: false, message: "请先登录上课啦账号" } };
   const body = await readJson(req);
-  const startDate = String(body.startDate || "").trim();
-  if (!parseISODateUTC(startDate)) return { status: 400, body: { ok: false, message: "缺少有效的学期开始日期" } };
+  const fallbackStartDate = String(body.startDate || "").trim();
+  if (!parseISODateUTC(fallbackStartDate)) return { status: 400, body: { ok: false, message: "缺少有效的学期开始日期" } };
   const weeks = Math.max(1, Math.min(25, Number(body.weeks) || 17));
   let token;
   try {
@@ -649,6 +668,12 @@ async function syncScheduleFromSkl(req) {
   } catch (error) {
     return { status: 401, body: { ok: false, message: error?.message || "请重新登录上课啦账号" } };
   }
+  let startDate = fallbackStartDate;
+  try {
+    const probeDate = parseISODateUTC(body.todayDate) ? String(body.todayDate) : fallbackStartDate;
+    const probePayload = await fetchSklCoursePayload(token, probeDate, body);
+    startDate = deriveTermStartDate(probeDate, payloadWeek(probePayload)) || fallbackStartDate;
+  } catch {}
   const allCourses = [];
   const concurrency = 4;
   try {
@@ -665,7 +690,7 @@ async function syncScheduleFromSkl(req) {
     return { status, body: { ok: false, message: error?.message || "上课啦课程接口暂时不可用" } };
   }
   const courses = mergeSklCourseWeeks(allCourses);
-  return { status: 200, body: { ok: true, courses, rawCount: allCourses.length, courseCount: courses.length, message: courses.length ? `已同步 ${courses.length} 门课程` : "上课啦没有返回课程" } };
+  return { status: 200, body: { ok: true, startDate, courses, rawCount: allCourses.length, courseCount: courses.length, message: courses.length ? `已同步 ${courses.length} 门课程` : "上课啦没有返回课程" } };
 }
 
 async function accountLogout(req) {

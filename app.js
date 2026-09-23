@@ -49,9 +49,7 @@
     topbarMenuBtn: document.querySelector("#topbarMenuBtn"),
     topbarMenu: document.querySelector("#topbarMenu"),
     openSettingsBtn: document.querySelector("#openSettingsBtn"),
-    openImportBtn: document.querySelector("#openImportBtn"),
     openAccountBtn: document.querySelector("#openAccountBtn"),
-    openSignInBtn: document.querySelector("#openSignInBtn"),
     syncSklScheduleBtn: document.querySelector("#syncSklScheduleBtn"),
     exportImageBtn: document.querySelector("#exportImageBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
@@ -61,7 +59,6 @@
     settingCellHeight: document.querySelector("#settingCellHeight"),
     saveSettingsBtn: document.querySelector("#saveSettingsBtn"),
     deleteScheduleBtn: document.querySelector("#deleteScheduleBtn"),
-    pdfFileInput: document.querySelector("#pdfFileInput"),
     sheetBackdrop: document.querySelector("#sheetBackdrop"),
     courseSheet: document.querySelector("#courseSheet"),
     courseDetail: document.querySelector("#courseDetail"),
@@ -90,6 +87,7 @@
   let signInCaptchaSubmitTimer = null;
   let signInPositionCache = null;
   let signInPositionCacheAt = 0;
+  let signInCourseContext = null;
   function createDefaultState() {
     const scheduleId = uid();
     return {
@@ -533,14 +531,15 @@
   }
 
 
-  function openSignInPanel(mode = "signin") {
+  function openSignInPanel(mode = "signin", context = null) {
     closeTopbarMenu();
+    signInCourseContext = context;
     const accountMode = mode === "account";
     if (elements.signinPanel) elements.signinPanel.dataset.mode = accountMode ? "account" : "signin";
     if (elements.signInPanelTitle) elements.signInPanelTitle.textContent = accountMode ? "登录上课啦账号" : "密令签到";
     if (elements.signinCurrentCourse) {
       elements.signinCurrentCourse.hidden = accountMode;
-      if (!accountMode) renderSignInCurrentCourse();
+      if (!accountMode) renderSignInCurrentCourse(context);
     }
     loadSavedSignInUsername();
     elements.signinBackdrop.hidden = false;
@@ -554,16 +553,23 @@
     elements.signinPanel.hidden = true;
   }
 
-  function renderSignInCurrentCourse() {
+  function renderSignInCurrentCourse(context = null) {
     if (!elements.signinCurrentCourse) return;
-    const item = getCurrentLiveCourse(currentSchedule());
+    const schedule = currentSchedule();
+    let item = null;
+    if (context?.courseId) {
+      const course = schedule.courses.find((entry) => entry.id === context.courseId);
+      const session = course ? (courseSessions(course)[Number(context.sessionIndex) || 0] || courseSessions(course)[0] || course) : null;
+      if (course && session) item = { course, ...session };
+    }
+    item = item || getCurrentLiveCourse(schedule);
     if (!item) {
-      elements.signinCurrentCourse.innerHTML = "<strong>当前没有匹配到正在上的课</strong><span>仍可打开上课啦签到页。</span>";
+      elements.signinCurrentCourse.innerHTML = "<strong>当前没有匹配到正在上的课</strong><span>也可以输入密令尝试提交。</span>";
       return;
     }
     const room = item.room ? ` · ${escapeHtml(item.room)}` : "";
     const teacher = item.teacher ? ` · ${escapeHtml(item.teacher)}` : "";
-    elements.signinCurrentCourse.innerHTML = `<strong>${escapeHtml(item.course.name)}</strong><span>${escapeHtml(sessionTimeText(currentSchedule(), item))}${room}${teacher}</span>`;
+    elements.signinCurrentCourse.innerHTML = `<strong>${escapeHtml(item.course.name)}</strong><span>${escapeHtml(sessionTimeText(schedule, item))}${room}${teacher}</span>`;
   }
 
   function getCurrentLiveCourse(schedule) {
@@ -618,14 +624,14 @@
       if (elements.signInAccountLoginBtn) elements.signInAccountLoginBtn.hidden = Boolean(loggedIn);
       if (elements.signInCodeField) elements.signInCodeField.hidden = true;
       if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = true;
-      if (!loggedIn) requestAnimationFrame(() => elements.signInUsernameInput?.focus());
+      if (!loggedIn && elements.signinPanel && !elements.signinPanel.hidden) requestAnimationFrame(() => elements.signInUsernameInput?.focus());
       return;
     }
     if (elements.signInLoginFields) elements.signInLoginFields.hidden = Boolean(loggedIn);
     if (elements.signInAccountLoginBtn) elements.signInAccountLoginBtn.hidden = Boolean(loggedIn);
     if (elements.signInCodeField) elements.signInCodeField.hidden = !loggedIn;
     if (elements.signInSubmitBtn) elements.signInSubmitBtn.hidden = !loggedIn;
-    if (loggedIn) requestAnimationFrame(() => elements.signInCodeInput?.focus());
+    if (loggedIn && elements.signinPanel && !elements.signinPanel.hidden) requestAnimationFrame(() => elements.signInCodeInput?.focus());
   }
 
   async function checkSignInBackend() {
@@ -663,11 +669,13 @@
 
   function renderAccountStatus(data) {
     if (!data?.loggedIn) {
+      if (elements.openAccountBtn) elements.openAccountBtn.textContent = "登录";
       setSignInLoggedIn(false);
       setSignInStatus("第一次使用需要先登录。", "warn");
       return;
     }
-    const userName = data?.user?.userName || data?.user?.id || "当前账号";
+    const userName = data?.user?.userName || data?.user?.name || data?.user?.id || "已登录";
+    if (elements.openAccountBtn) elements.openAccountBtn.textContent = String(userName).slice(0, 8);
     setSignInLoggedIn(true);
     setSignInStatus(`${userName} 已登录。`, "ok");
   }
@@ -680,6 +688,7 @@
       renderAccountStatus(data);
       return data;
     } catch (error) {
+      if (elements.openAccountBtn) elements.openAccountBtn.textContent = "登录";
       setSignInLoggedIn(false);
       setSignInStatus(error?.message || "读取上课啦账号状态失败", "bad");
       return null;
@@ -900,6 +909,7 @@
         <div class="detail-row"><span>地点</span><strong>${escapeHtml(session.room || course.room || "未填写")}</strong></div>
         <div class="detail-row"><span>老师</span><strong>${escapeHtml(session.teacher || course.teacher || "未填写")}</strong></div>
         <div class="detail-row"><span>学分</span><strong>${escapeHtml(course.credit || "未填写")}</strong></div>
+        <button class="detail-signin-button" type="button" data-signin-course="${escapeHtml(course.id)}" data-session-index="${sessionIndex}">密令签到</button>
       </div>`;
     elements.sheetBackdrop.hidden = false;
     elements.courseSheet.hidden = false;
@@ -972,7 +982,7 @@
     };
     state.schedules.push(schedule);
     state.currentScheduleId = schedule.id;
-    state.selectedWeek = 1;
+    state.selectedWeek = getCurrentWeek(schedule);
     saveState();
     render();
     openSettingsDialog();
@@ -994,7 +1004,7 @@
   }
 
 
-  function applyImportedCourses(parsed) {
+  function applyImportedCourses(parsed, options = {}) {
     const schedule = currentSchedule();
     const merged = mergeImportedCourseSessions(parsed);
     schedule.courses = merged.map((course, index) => normalizeCourse({
@@ -1003,10 +1013,11 @@
       ...course
     })).filter(Boolean);
     schedule.nodes = 13;
+    if (options.startDate) schedule.startDate = options.startDate;
     schedule.totalWeeks = termWeeks;
     schedule.showWeekend = false;
     schedule.timeTable = cloneDefaultTimeTable(13);
-    state.selectedWeek = 1;
+    state.selectedWeek = getCurrentWeek(schedule);
     saveState();
     render();
     showToast(`已导入 ${schedule.courses.length} 门课程`);
@@ -1020,7 +1031,7 @@
       const response = await fetch(`${signInApiBase}/schedule/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate: schedule.startDate, weeks: schedule.totalWeeks || termWeeks, userAgent: navigator.userAgent })
+        body: JSON.stringify({ startDate: schedule.startDate, todayDate: toISODate(today), weeks: schedule.totalWeeks || termWeeks, userAgent: navigator.userAgent })
       });
       const data = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -1033,7 +1044,7 @@
         showToast("上课啦没有返回课程");
         return;
       }
-      applyImportedCourses(data.courses);
+      applyImportedCourses(data.courses, { startDate: data.startDate });
       showToast(`已同步 ${currentSchedule().courses.length} 门课程`);
     } catch (error) {
       showToast(error?.message || "同步上课啦课表失败");
@@ -2631,7 +2642,6 @@
   document.addEventListener("click", closeTopbarMenu);
 
   elements.openAccountBtn?.addEventListener("click", () => openSignInPanel("account"));
-  elements.openSignInBtn?.addEventListener("click", () => openSignInPanel("signin"));
   elements.syncSklScheduleBtn?.addEventListener("click", syncSklSchedule);
   elements.closeSignInBtn?.addEventListener("click", closeSignInPanel);
   elements.signinBackdrop?.addEventListener("click", closeSignInPanel);
@@ -2642,13 +2652,16 @@
   });
   elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
-  elements.openImportBtn?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") elements.pdfFileInput?.click();
-  });
   elements.newScheduleBtn.addEventListener("click", createNewSchedule);
   elements.saveSettingsBtn.addEventListener("click", saveSettingsFromDialog);
   elements.deleteScheduleBtn.addEventListener("click", deleteCurrentSchedule);
-  elements.pdfFileInput?.addEventListener("change", () => importPdfFile(elements.pdfFileInput.files?.[0]));
+  elements.courseDetail?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-signin-course]");
+    if (!button) return;
+    const context = { courseId: button.dataset.signinCourse, sessionIndex: Number(button.dataset.sessionIndex) || 0 };
+    hideCourseDetail();
+    openSignInPanel("signin", context);
+  });
   elements.sheetBackdrop.addEventListener("click", hideCourseDetail);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") hideCourseDetail();
@@ -2662,6 +2675,7 @@
     });
   }
 
+  checkSignInAccountStatus({ quiet: true });
   registerServiceWorker();
   render();
 })();

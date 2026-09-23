@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-2" />
     <style>html,body{margin:0;background:#c8f6fd;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-27" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-28" />
   </head>
   <body>
     <div class="app-shell">
@@ -55,20 +55,15 @@
             <div class="eyebrow" id="dateRangeText"></div>
           </div>
           <div class="topbar-actions">
+            <button class="account-button" id="openAccountBtn" type="button">登录</button>
             <button class="menu-button" id="topbarMenuBtn" type="button" aria-label="打开课表菜单" aria-haspopup="true" aria-expanded="false">
               <span></span><span></span><span></span>
             </button>
             <div class="topbar-menu" id="topbarMenu" hidden>
               <button class="menu-row" id="toggleOtherWeekBtn" type="button">显示非本周课程</button>
               <button class="menu-row" id="currentWeekBtn" type="button">返回本周课表</button>
-              <button class="menu-row" id="openAccountBtn" type="button">登录上课啦账号</button>
-              <button class="menu-row" id="openSignInBtn" type="button">上课啦签到</button>
               <button class="menu-row" id="syncSklScheduleBtn" type="button">同步上课啦课表</button>
               <button class="menu-row" id="exportImageBtn" type="button">导出课表图片</button>
-              <label class="menu-row file-menu-row" id="openImportBtn" tabindex="0">
-                <span>导入 PDF</span>
-                <input id="pdfFileInput" class="file-menu-input" type="file" accept=".pdf,application/pdf" />
-              </label>
             </div>
 
           </div>
@@ -162,7 +157,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-skl-61"></script>
+    <script src="./app.js?v=fakeup-skl-62"></script>
   </body>
 </html>
 
