@@ -430,6 +430,7 @@
   }
 
   function renderWeekHeader(schedule) {
+    const weekStart = addDays(parseISODate(schedule.startDate), (state.selectedWeek - 1) * 7);
     const weekEnd = addDays(weekStart, 6);
     const status = weekStatus(schedule);
     elements.weekTitle.textContent = `第 ${state.selectedWeek} 周${status}`;
