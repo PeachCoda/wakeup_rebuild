@@ -254,10 +254,10 @@
     const image = value ? `url(${JSON.stringify(value)})` : "";
     const opacity = clamp(Number(schedule?.backgroundOpacity) || 70, 20, 100);
     const strength = opacity / 100;
-    const shellAlpha = (0.86 - strength * 0.34).toFixed(2);
-    const panelAlpha = (0.9 - strength * 0.34).toFixed(2);
-    const wrapAlpha = Math.max(0.08, 0.42 - strength * 0.28).toFixed(2);
-    const gridAlpha = Math.max(0.04, 0.28 - strength * 0.2).toFixed(2);
+    const shellAlpha = Math.max(0.34, 0.9 - strength * 0.5).toFixed(2);
+    const panelAlpha = Math.max(0.38, 0.9 - strength * 0.46).toFixed(2);
+    const wrapAlpha = Math.max(0.03, 0.34 - strength * 0.26).toFixed(2);
+    const gridAlpha = Math.max(0.02, 0.2 - strength * 0.16).toFixed(2);
     document.documentElement.style.setProperty("--bg-strength", String(strength));
     document.documentElement.style.setProperty("--bg-shell-alpha", shellAlpha);
     document.documentElement.style.setProperty("--bg-panel-alpha", panelAlpha);
@@ -284,7 +284,7 @@
       elements.backgroundPreview.classList.toggle("empty", !image);
       elements.backgroundPreview.style.setProperty("--preview-bg", image || "none");
       elements.backgroundPreview.style.setProperty("--preview-strength", String(opacity / 100));
-      elements.backgroundPreview.innerHTML = `<span>${image ? "模糊铺底 · 完整显示" : "还没有背景图片"}</span>`;
+      elements.backgroundPreview.innerHTML = image ? "" : "<span>还没有背景图片</span>";
     }
   }
 
@@ -1598,10 +1598,10 @@
       ctx.filter = "none";
       drawImageContain(ctx, backgroundImage, 0, 0, width, height);
       ctx.restore();
-      ctx.fillStyle = `rgba(255, 255, 255, ${(0.74 - backgroundOpacity * 0.26).toFixed(2)})`;
+      ctx.fillStyle = `rgba(255, 255, 255, ${(0.7 - backgroundOpacity * 0.22).toFixed(2)})`;
       ctx.fillRect(0, 0, width, height);
     }
-    roundRect(ctx, 12, 12, width - 24, height - 24, 28, backgroundImage ? `rgba(255, 255, 255, ${(0.82 - backgroundOpacity * 0.28).toFixed(2)})` : "#ffffff");
+    roundRect(ctx, 12, 12, width - 24, height - 24, 28, backgroundImage ? `rgba(255, 255, 255, ${(0.76 - backgroundOpacity * 0.22).toFixed(2)})` : "#ffffff");
 
     ctx.fillStyle = "#1f2937";
     ctx.font = `600 46px ${fontFamily}`;
@@ -1671,8 +1671,8 @@
       const y = bodyTop + (item.start - 1) * rowHeight + gap;
       const w = dayWidth / item.laneCount - gap * 2;
       const h = (item.end - item.start + 1) * rowHeight - gap * 2;
-      const bg = tintColor(item.course.color, item.isActive ? 0.78 : 0.9);
-      const textColor = item.isActive ? courseTextColor(item.course.color) : "#6f7785";
+      const bg = tintColor(item.course.color, item.isActive ? 0.68 : 0.84);
+      const textColor = item.isActive ? courseTextColor(item.course.color) : "#536071";
       roundRect(ctx, x, y, w, h, 18, bg);
       roundRect(ctx, x, y, w, 12, { tl: 18, tr: 18, br: 0, bl: 0 }, tintColor(item.course.color, item.isActive ? 0.08 : 0.38));
       const lines = [item.course.name];
@@ -1680,8 +1680,8 @@
       if (item.teacher) lines.push(item.teacher);
       if (item.room) lines.push(item.room);
       ctx.fillStyle = textColor;
-      ctx.font = `500 ${item.laneCount > 1 ? 18 : 21}px ${fontFamily}`;
-      drawWrappedCenteredLines(ctx, lines, x + 8, y + 18, w - 16, h - 28, item.laneCount > 1 ? 22 : 26);
+      ctx.font = `700 ${item.laneCount > 1 ? 19 : 22}px ${fontFamily}`;
+      drawWrappedCenteredLines(ctx, lines, x + 8, y + 18, w - 16, h - 28, item.laneCount > 1 ? 23 : 27);
     });
 
     return new Promise((resolve, reject) => {
@@ -1958,7 +1958,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-34").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-35").catch(() => {});
     });
   }
 
