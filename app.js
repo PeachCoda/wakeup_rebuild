@@ -65,14 +65,10 @@
     closeBackgroundBtn: document.querySelector("#closeBackgroundBtn"),
     backgroundInput: document.querySelector("#backgroundInput"),
     clearBackgroundBtn: document.querySelector("#clearBackgroundBtn"),
-    backgroundCropBackdrop: document.querySelector("#backgroundCropBackdrop"),
-    backgroundCropPanel: document.querySelector("#backgroundCropPanel"),
-    backgroundCropStage: document.querySelector("#backgroundCropStage"),
-    backgroundCropImage: document.querySelector("#backgroundCropImage"),
+    backgroundScaleField: document.querySelector("#backgroundScaleField"),
+    backgroundCropStage: document.querySelector("#backgroundPreview"),
     backgroundCropScaleInput: document.querySelector("#backgroundCropScaleInput"),
     backgroundCropScaleValue: document.querySelector("#backgroundCropScaleValue"),
-    cancelBackgroundCropBtn: document.querySelector("#cancelBackgroundCropBtn"),
-    applyBackgroundCropBtn: document.querySelector("#applyBackgroundCropBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
     settingsDialog: document.querySelector("#settingsDialog"),
     settingName: document.querySelector("#settingName"),
@@ -334,6 +330,7 @@
     const opacity = clamp(Number(schedule?.backgroundOpacity) || 70, 20, 100);
     if (elements.backgroundOpacityInput) elements.backgroundOpacityInput.value = String(opacity);
     if (elements.backgroundOpacityValue) elements.backgroundOpacityValue.textContent = `${opacity}%`;
+    updateBackgroundPreviewAspect();
     if (elements.backgroundPreview) {
       const image = schedule?.backgroundImage ? `url(${JSON.stringify(schedule.backgroundImage)})` : "";
       elements.backgroundPreview.classList.toggle("empty", !image);
@@ -347,13 +344,25 @@
       }
       elements.backgroundPreview.innerHTML = image ? "" : "<span>还没有背景图片</span>";
     }
+    if (elements.backgroundScaleField) elements.backgroundScaleField.hidden = !schedule?.backgroundImage;
+    const scalePercent = Math.round(clamp(Number(schedule?.backgroundScale) || 1, 1, 3) * 100);
+    if (elements.backgroundCropScaleInput) elements.backgroundCropScaleInput.value = String(scalePercent);
+    if (elements.backgroundCropScaleValue) elements.backgroundCropScaleValue.textContent = `${scalePercent}%`;
   }
 
   function openBackgroundPanel() {
     closeTopbarMenu();
-    updateBackgroundSettingsUi();
+    updateBackgroundPreviewAspect();
     elements.backgroundBackdrop.hidden = false;
     elements.backgroundPanel.hidden = false;
+    window.requestAnimationFrame(() => updateBackgroundSettingsUi());
+  }
+
+  function updateBackgroundPreviewAspect() {
+    if (!elements.backgroundPreview) return;
+    const shellRect = elements.appShell?.getBoundingClientRect();
+    const aspect = shellRect?.width && shellRect?.height ? shellRect.width / shellRect.height : window.innerWidth / Math.max(1, window.innerHeight);
+    elements.backgroundPreview.style.setProperty("--preview-aspect", String(clamp(aspect, 0.42, 1.8)));
   }
 
   function closeBackgroundPanel() {
@@ -1829,74 +1838,33 @@
     return loadCanvasImage(src).then((resizedImage) => ({ image: resizedImage, src }));
   }
 
-  function openBackgroundCropper(image, src) {
-    if (!elements.backgroundCropPanel || !elements.backgroundCropStage || !elements.backgroundCropImage) return;
-    closeTopbarMenu();
-    closeBackgroundPanel();
-    const shellRect = elements.appShell?.getBoundingClientRect();
-    const aspect = shellRect?.width && shellRect?.height ? shellRect.width / shellRect.height : window.innerWidth / Math.max(1, window.innerHeight);
-    elements.backgroundCropStage.style.setProperty("--crop-aspect", String(clamp(aspect, 0.42, 1.2)));
-    elements.backgroundCropImage.src = src;
-    elements.backgroundCropBackdrop.hidden = false;
-    elements.backgroundCropPanel.hidden = false;
-    window.requestAnimationFrame(() => {
-      const rect = elements.backgroundCropStage.getBoundingClientRect();
-      const minScale = Math.max(rect.width / image.width, rect.height / image.height);
-      backgroundCropState = { image, src, minScale, scaleRatio: 1, offsetX: 0, offsetY: 0, dragging: false, lastX: 0, lastY: 0 };
-      if (elements.backgroundCropScaleInput) elements.backgroundCropScaleInput.value = "100";
-      updateBackgroundCropTransform();
-    });
-  }
-
-  function closeBackgroundCropper() {
-    if (elements.backgroundCropBackdrop) elements.backgroundCropBackdrop.hidden = true;
-    if (elements.backgroundCropPanel) elements.backgroundCropPanel.hidden = true;
-    if (elements.backgroundCropImage) elements.backgroundCropImage.removeAttribute("src");
-    backgroundCropState = null;
-  }
-
-  function clampBackgroundCropOffset() {
-    if (!backgroundCropState || !elements.backgroundCropStage) return;
-    const rect = elements.backgroundCropStage.getBoundingClientRect();
-    const scale = backgroundCropState.minScale * backgroundCropState.scaleRatio;
-    const drawWidth = backgroundCropState.image.width * scale;
-    const drawHeight = backgroundCropState.image.height * scale;
-    const maxX = Math.max(0, (drawWidth - rect.width) / 2);
-    const maxY = Math.max(0, (drawHeight - rect.height) / 2);
-    backgroundCropState.offsetX = clamp(backgroundCropState.offsetX, -maxX, maxX);
-    backgroundCropState.offsetY = clamp(backgroundCropState.offsetY, -maxY, maxY);
-  }
-
   function updateBackgroundCropTransform() {
-    if (!backgroundCropState || !elements.backgroundCropImage) return;
-    clampBackgroundCropOffset();
-    const percent = Math.round(backgroundCropState.scaleRatio * 100);
-    if (elements.backgroundCropScaleValue) elements.backgroundCropScaleValue.textContent = `${percent}%`;
-    const scale = backgroundCropState.minScale * backgroundCropState.scaleRatio;
-    elements.backgroundCropImage.style.width = `${backgroundCropState.image.width}px`;
-    elements.backgroundCropImage.style.height = `${backgroundCropState.image.height}px`;
-    elements.backgroundCropImage.style.transform = `translate(calc(-50% + ${backgroundCropState.offsetX}px), calc(-50% + ${backgroundCropState.offsetY}px)) scale(${scale})`;
+    const schedule = currentSchedule();
+    saveState();
+    applyScheduleBackground(schedule);
   }
 
   function updateBackgroundCropScale() {
-    if (!backgroundCropState) return;
-    backgroundCropState.scaleRatio = clamp(Number(elements.backgroundCropScaleInput?.value) || 100, 100, 300) / 100;
+    const schedule = currentSchedule();
+    if (!schedule?.backgroundImage) return;
+    schedule.backgroundScale = clamp(Number(elements.backgroundCropScaleInput?.value) || 100, 100, 300) / 100;
     updateBackgroundCropTransform();
   }
 
   function handleBackgroundCropPointerDown(event) {
-    if (!backgroundCropState) return;
-    backgroundCropState.dragging = true;
-    backgroundCropState.lastX = event.clientX;
-    backgroundCropState.lastY = event.clientY;
-    elements.backgroundCropStage?.setPointerCapture?.(event.pointerId);
+    const schedule = currentSchedule();
+    if (!schedule?.backgroundImage || !elements.backgroundCropStage) return;
+    backgroundCropState = { dragging: true, lastX: event.clientX, lastY: event.clientY };
+    elements.backgroundCropStage.setPointerCapture?.(event.pointerId);
   }
 
   function handleBackgroundCropPointerMove(event) {
-    if (!backgroundCropState?.dragging) return;
+    if (!backgroundCropState?.dragging || !elements.backgroundCropStage) return;
     event.preventDefault();
-    backgroundCropState.offsetX += event.clientX - backgroundCropState.lastX;
-    backgroundCropState.offsetY += event.clientY - backgroundCropState.lastY;
+    const rect = elements.backgroundCropStage.getBoundingClientRect();
+    const schedule = currentSchedule();
+    schedule.backgroundOffsetX = clamp((Number(schedule.backgroundOffsetX) || 0) + (event.clientX - backgroundCropState.lastX) / Math.max(1, rect.width), -1, 1);
+    schedule.backgroundOffsetY = clamp((Number(schedule.backgroundOffsetY) || 0) + (event.clientY - backgroundCropState.lastY) / Math.max(1, rect.height), -1, 1);
     backgroundCropState.lastX = event.clientX;
     backgroundCropState.lastY = event.clientY;
     updateBackgroundCropTransform();
@@ -1906,35 +1874,7 @@
     if (!backgroundCropState) return;
     backgroundCropState.dragging = false;
     elements.backgroundCropStage?.releasePointerCapture?.(event.pointerId);
-  }
-
-  function getBackgroundCropTransform() {
-    if (!backgroundCropState || !elements.backgroundCropStage) return null;
-    const rect = elements.backgroundCropStage.getBoundingClientRect();
-    return {
-      image: backgroundCropState.src,
-      aspect: backgroundCropState.image.width / Math.max(1, backgroundCropState.image.height),
-      scale: backgroundCropState.scaleRatio,
-      offsetX: backgroundCropState.offsetX / Math.max(1, rect.width),
-      offsetY: backgroundCropState.offsetY / Math.max(1, rect.height)
-    };
-  }
-
-  function applyBackgroundCrop() {
-    const transform = getBackgroundCropTransform();
-    if (!transform) return;
-    const schedule = currentSchedule();
-    schedule.backgroundImage = transform.image;
-    schedule.backgroundAspect = transform.aspect;
-    schedule.backgroundScale = transform.scale;
-    schedule.backgroundOffsetX = transform.offsetX;
-    schedule.backgroundOffsetY = transform.offsetY;
-    saveState();
-    closeBackgroundCropper();
-    applyScheduleBackground(schedule);
-    render();
-    openBackgroundPanel();
-    showToast("背景已替换");
+    backgroundCropState = null;
   }
 
   async function handleBackgroundInputChange(event) {
@@ -1947,7 +1887,17 @@
     }
     try {
       const { image, src } = await readImageFile(file);
-      openBackgroundCropper(image, src);
+      const schedule = currentSchedule();
+      schedule.backgroundImage = src;
+      schedule.backgroundAspect = image.width / Math.max(1, image.height);
+      schedule.backgroundScale = 1;
+      schedule.backgroundOffsetX = 0;
+      schedule.backgroundOffsetY = 0;
+      saveState();
+      applyScheduleBackground(schedule);
+      render();
+      openBackgroundPanel();
+      showToast("背景已替换");
     } catch (error) {
       console.warn("读取背景失败。", error);
       showToast("图片读取失败");
@@ -2088,12 +2038,6 @@
     render();
   });
 
-  elements.currentWeekBtn.addEventListener("click", () => {
-    state.selectedWeek = getCurrentWeek(currentSchedule());
-    saveState();
-    closeTopbarMenu();
-    render();
-  });
   elements.weekPickerBtn?.addEventListener("click", openWeekPicker);
   elements.weekSelect?.addEventListener("change", () => {
     state.selectedWeek = clamp(Number(elements.weekSelect.value) || 1, 1, currentSchedule().totalWeeks);
@@ -2149,9 +2093,6 @@
   elements.backgroundOpacityInput?.addEventListener("input", updateBackgroundOpacity);
   elements.backgroundInput?.addEventListener("change", handleBackgroundInputChange);
   elements.clearBackgroundBtn?.addEventListener("click", clearBackgroundImage);
-  elements.backgroundCropBackdrop?.addEventListener("click", closeBackgroundCropper);
-  elements.cancelBackgroundCropBtn?.addEventListener("click", closeBackgroundCropper);
-  elements.applyBackgroundCropBtn?.addEventListener("click", applyBackgroundCrop);
   elements.backgroundCropScaleInput?.addEventListener("input", updateBackgroundCropScale);
   elements.backgroundCropStage?.addEventListener("pointerdown", handleBackgroundCropPointerDown);
   elements.backgroundCropStage?.addEventListener("pointermove", handleBackgroundCropPointerMove);
@@ -2169,7 +2110,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-37").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-38").catch(() => {});
     });
   }
 

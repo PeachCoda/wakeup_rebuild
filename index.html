@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-3" />
     <style>html,body{margin:0;background:#fff;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-49" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-50" />
   </head>
   <body>
     <div class="page-background" id="pageBackground" aria-hidden="true">
@@ -65,7 +65,6 @@
             </button>
             <div class="topbar-menu" id="topbarMenu" hidden>
               <button class="menu-row" id="toggleOtherWeekBtn" type="button">显示非本周课程</button>
-              <button class="menu-row" id="currentWeekBtn" type="button">返回本周课表</button>
               <button class="menu-row" id="syncSklScheduleBtn" type="button">同步上课啦课表</button>
               <button class="menu-row" id="openBackgroundBtn" type="button">替换背景</button>
               <button class="menu-row" id="exportImageBtn" type="button">导出课表图片</button>
@@ -186,13 +185,16 @@
       <header class="background-head">
         <div>
           <p class="eyebrow">背景</p>
-          <h3>替换背景</h3>
         </div>
         <button class="icon-button" id="closeBackgroundBtn" type="button" aria-label="关闭">×</button>
       </header>
       <div class="background-preview" id="backgroundPreview">
-        <span>模糊铺底 · 完整显示</span>
+        <span>还没有背景图片</span>
       </div>
+      <label class="background-range background-scale-range" id="backgroundScaleField" hidden>
+        <span>背景缩放 <strong id="backgroundCropScaleValue">100%</strong></span>
+        <input id="backgroundCropScaleInput" type="range" min="100" max="300" step="1" value="100" />
+      </label>
       <div class="background-actions">
         <label class="plain-button background-pick" for="backgroundInput">选择图片</label>
         <button class="plain-button" id="clearBackgroundBtn" type="button">清除背景</button>
@@ -204,32 +206,10 @@
     </section>
 
 
-    <div class="background-crop-backdrop" id="backgroundCropBackdrop" hidden></div>
-    <section class="background-crop-panel" id="backgroundCropPanel" aria-label="调整背景" hidden>
-      <header class="background-head">
-        <div>
-          <p class="eyebrow">背景</p>
-          <h3>调整背景</h3>
-        </div>
-      </header>
-      <div class="background-crop-stage" id="backgroundCropStage">
-        <img id="backgroundCropImage" alt="待调整背景" />
-      </div>
-      <label class="background-range background-crop-range">
-        <span>缩放 <strong id="backgroundCropScaleValue">100%</strong></span>
-        <input id="backgroundCropScaleInput" type="range" min="100" max="300" step="1" value="100" />
-      </label>
-      <div class="background-actions">
-        <button class="plain-button" id="cancelBackgroundCropBtn" type="button">取消</button>
-        <button class="primary-button" id="applyBackgroundCropBtn" type="button">应用背景</button>
-      </div>
-    </section>
-
-
     <input class="sr-only" id="backgroundInput" type="file" accept="image/*" />
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-skl-85"></script>
+    <script src="./app.js?v=fakeup-skl-86"></script>
   </body>
 </html>
 
