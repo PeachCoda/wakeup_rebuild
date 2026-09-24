@@ -1089,13 +1089,6 @@ button:disabled {
     padding: 10px 12px;
   }
 
-  .week-nav,
-  #prevWeekBtn,
-  #nextWeekBtn,
-  #openSettingsBtn {
-    display: none !important;
-  }
-
   .week-strip,
   .timetable {
     width: 100%;
@@ -1279,12 +1272,6 @@ textarea {
   font-size: 15px;
 }
 
-.week-nav,
-#prevWeekBtn,
-#nextWeekBtn,
-#openSettingsBtn {
-  display: none !important;
-}
 
 .week-strip,
 .timetable {
@@ -1627,10 +1614,7 @@ body {
 }
 
 #topbarMenu .other-week-toggle,
-#topbarMenu #currentWeekBtn,
-#topbarMenu #exportImageBtn,
-
-#topbarMenu .other-week-toggle {
+#topbarMenu #exportImageBtn {
   justify-content: flex-start !important;
   background: transparent !important;
 }

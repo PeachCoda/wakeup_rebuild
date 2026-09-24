@@ -46,13 +46,9 @@
     pageBackground: document.querySelector("#pageBackground"),
     pageBackgroundBlur: document.querySelector("#pageBackgroundBlur"),
     pageBackgroundMain: document.querySelector("#pageBackgroundMain"),
-    prevWeekBtn: document.querySelector("#prevWeekBtn"),
-    nextWeekBtn: document.querySelector("#nextWeekBtn"),
-    currentWeekBtn: document.querySelector("#currentWeekBtn"),
     toggleOtherWeekBtn: document.querySelector("#toggleOtherWeekBtn"),
     topbarMenuBtn: document.querySelector("#topbarMenuBtn"),
     topbarMenu: document.querySelector("#topbarMenu"),
-    openSettingsBtn: document.querySelector("#openSettingsBtn"),
     openAccountBtn: document.querySelector("#openAccountBtn"),
     syncSklScheduleBtn: document.querySelector("#syncSklScheduleBtn"),
     exportImageBtn: document.querySelector("#exportImageBtn"),
@@ -431,7 +427,6 @@
 
   function renderWeekHeader(schedule) {
     const weekStart = addDays(parseISODate(schedule.startDate), (state.selectedWeek - 1) * 7);
-    const weekEnd = addDays(weekStart, 6);
     const status = weekStatus(schedule);
     elements.weekTitle.textContent = `第 ${state.selectedWeek} 周${status}`;
     if (elements.weekSelect) {
@@ -1814,15 +1809,6 @@
     ctx.drawImage(image, drawX, drawY, metrics.drawWidth, metrics.drawHeight);
   }
 
-  function drawImageContain(ctx, image, x, y, width, height) {
-    const scale = Math.min(width / image.width, height / image.height);
-    const drawWidth = image.width * scale;
-    const drawHeight = image.height * scale;
-    const drawX = x + (width - drawWidth) / 2;
-    const drawY = y + (height - drawHeight) / 2;
-    ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
-  }
-
   function readImageFile(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -2028,18 +2014,6 @@
     showToast.timer = window.setTimeout(() => elements.toast.classList.remove("show"), 1500);
   }
 
-  elements.prevWeekBtn?.addEventListener("click", () => {
-    state.selectedWeek = clamp(state.selectedWeek - 1, 1, currentSchedule().totalWeeks);
-    saveState();
-    render();
-  });
-
-  elements.nextWeekBtn?.addEventListener("click", () => {
-    state.selectedWeek = clamp(state.selectedWeek + 1, 1, currentSchedule().totalWeeks);
-    saveState();
-    render();
-  });
-
   elements.weekPickerBtn?.addEventListener("click", openWeekPicker);
   elements.weekSelect?.addEventListener("change", () => {
     state.selectedWeek = clamp(Number(elements.weekSelect.value) || 1, 1, currentSchedule().totalWeeks);
@@ -2087,7 +2061,6 @@
   elements.signInSubmitBtn?.addEventListener("click", submitSignInCode);
   elements.signInKeypad?.addEventListener("click", handleSignInKeypadClick);
   elements.signinPanel?.addEventListener("keydown", handleSignInPanelKeydown);
-  elements.openSettingsBtn?.addEventListener("click", openSettingsDialog);
   elements.exportImageBtn?.addEventListener("click", exportScheduleImage);
   elements.openBackgroundBtn?.addEventListener("click", openBackgroundPanel);
   elements.closeBackgroundBtn?.addEventListener("click", closeBackgroundPanel);
@@ -2113,7 +2086,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-42").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-48").catch(() => {});
     });
   }
 
