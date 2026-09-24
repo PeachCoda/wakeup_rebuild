@@ -3346,23 +3346,18 @@ html.has-custom-bg .course-card::before {
 
 /* Soft Sakura toast. */
 .toast {
-  max-width: min(78vw, 320px) !important;
-  padding: 8px 13px !important;
-  border: 1px solid rgba(255, 192, 203, 0.42) !important;
+  max-width: min(74vw, 300px) !important;
+  padding: 7px 12px !important;
+  border: 0 !important;
   border-radius: 14px !important;
-  background: linear-gradient(180deg, rgba(255, 244, 248, 0.82), rgba(255, 232, 240, 0.72)) !important;
-  color: rgba(151, 72, 93, 0.9) !important;
-  font-size: 13px !important;
+  background: linear-gradient(180deg, rgba(255, 173, 197, 0.58), rgba(255, 134, 172, 0.48)) !important;
+  color: rgba(255, 255, 255, 0.96) !important;
+  font-size: 12px !important;
   font-weight: 650 !important;
   line-height: 1.35 !important;
-  box-shadow: 0 12px 30px rgba(178, 92, 115, 0.16) !important;
-  backdrop-filter: blur(16px) saturate(1.12) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(1.12) !important;
-}
-
-
-/* Toasts are disabled in app; keep the node inert if older code toggles it. */
-.toast,
-.toast.show {
-  display: none !important;
+  letter-spacing: 0.01em !important;
+  text-shadow: 0 1px 5px rgba(152, 55, 86, 0.24) !important;
+  box-shadow: 0 12px 32px rgba(178, 92, 115, 0.14) !important;
+  backdrop-filter: blur(18px) saturate(1.12) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.12) !important;
 }

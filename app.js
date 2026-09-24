@@ -1671,105 +1671,17 @@
   }
 
   async function renderScheduleImageBlob(schedule) {
-    try {
-      return await renderScheduleDomImageBlob();
-    } catch (error) {
-      console.warn("DOM 导出失败，回退到画布导出。", error);
-      return renderScheduleCanvasImageBlob(schedule);
-    }
-  }
-
-  async function renderScheduleDomImageBlob() {
-    const main = document.querySelector(".main");
-    const timetable = elements.timetable;
-    const topbar = document.querySelector(".topbar");
-    const weekStrip = elements.weekStrip;
-    if (!main || !timetable || !topbar || !weekStrip) throw new Error("missing export nodes");
-    const width = Math.round(main.getBoundingClientRect().width || window.innerWidth || 390);
-    const topbarHeight = Math.ceil(topbar.getBoundingClientRect().height || 92);
-    const weekHeight = Math.ceil(weekStrip.getBoundingClientRect().height || 56);
-    const tableHeight = Math.ceil(timetable.scrollHeight || timetable.getBoundingClientRect().height || 988);
-    const height = topbarHeight + weekHeight + tableHeight;
-    const root = document.createElement("div");
-    root.className = "export-root";
-    root.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
-    root.style.width = `${width}px`;
-    root.style.height = `${height}px`;
-    const style = document.createElement("style");
-    style.textContent = `${collectStyleText()}
-${exportOverrideCss(width, height, topbarHeight, weekHeight, tableHeight)}`;
-    root.append(style);
-    const bg = elements.pageBackground?.cloneNode(true);
-    if (bg) root.append(bg);
-    const clone = main.cloneNode(true);
-    clone.querySelector(".topbar-menu")?.remove();
-    clone.querySelectorAll("button").forEach((button) => button.setAttribute("disabled", ""));
-    root.append(clone);
-    return renderForeignObjectToBlob(root, width, height);
-  }
-
-  function collectStyleText() {
-    return Array.from(document.styleSheets).map((sheet) => {
-      try {
-        return Array.from(sheet.cssRules || []).map((rule) => rule.cssText).join("\n");
-      } catch (error) {
-        return "";
-      }
-    }).join("\n");
-  }
-
-  function exportOverrideCss(width, height, topbarHeight, weekHeight, tableHeight) {
-    return `
-      .export-root { position: relative; width: ${width}px; height: ${height}px; overflow: hidden; background: #fff; color: var(--text); }
-      .export-root, .export-root * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-      .export-root .page-background { position: absolute !important; inset: 0 !important; width: ${width}px !important; height: ${height}px !important; z-index: 0 !important; pointer-events: none !important; }
-      .export-root .main { position: relative !important; z-index: 1 !important; width: ${width}px !important; height: ${height}px !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; display: flex !important; flex-direction: column !important; }
-      .export-root .topbar { position: relative !important; top: auto !important; flex: 0 0 ${topbarHeight}px !important; min-height: ${topbarHeight}px !important; height: ${topbarHeight}px !important; }
-      .export-root .week-strip { position: relative !important; top: auto !important; flex: 0 0 ${weekHeight}px !important; height: ${weekHeight}px !important; }
-      .export-root .timetable-wrap { flex: 0 0 ${tableHeight}px !important; height: ${tableHeight}px !important; min-height: ${tableHeight}px !important; max-height: none !important; overflow: visible !important; }
-      .export-root .timetable { height: ${tableHeight}px !important; min-height: ${tableHeight}px !important; }
-      .export-root .topbar-menu, .export-root .sidebar, .export-root .toast { display: none !important; }
-      .export-root button { pointer-events: none !important; }
-    `;
-  }
-
-  function renderForeignObjectToBlob(root, width, height) {
-    return new Promise((resolve, reject) => {
-      const serialized = new XMLSerializer().serializeToString(root);
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><foreignObject width="100%" height="100%">${serialized}</foreignObject></svg>`;
-      const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-      const image = new Image();
-      image.onload = () => {
-        try {
-          const ratio = Math.min(3, Math.max(2, window.devicePixelRatio || 2));
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.round(width * ratio);
-          canvas.height = Math.round(height * ratio);
-          const ctx = canvas.getContext("2d");
-          ctx.scale(ratio, ratio);
-          ctx.drawImage(image, 0, 0, width, height);
-          URL.revokeObjectURL(url);
-          canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("canvas toBlob failed")), "image/png", 0.95);
-        } catch (error) {
-          URL.revokeObjectURL(url);
-          reject(error);
-        }
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("svg image load failed"));
-      };
-      image.src = url;
-    });
+    return renderScheduleCanvasImageBlob(schedule);
   }
 
   async function renderScheduleCanvasImageBlob(schedule) {
+    await document.fonts?.ready?.catch?.(() => {});
     const days = visibleDays(schedule);
     const weekStart = addDays(parseISODate(schedule.startDate), (state.selectedWeek - 1) * 7);
     const shellRect = elements.appShell?.getBoundingClientRect();
     const topbarRect = document.querySelector(".topbar")?.getBoundingClientRect();
     const weekRect = elements.weekStrip?.getBoundingClientRect();
-    const cssWidth = Math.round(shellRect?.width || Math.min(window.innerWidth || 460, 520));
+    const cssWidth = Math.round(document.querySelector(".main")?.getBoundingClientRect().width || shellRect?.width || Math.min(window.innerWidth || 460, 520));
     const width = clamp(cssWidth, 320, 560);
     const timeWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--time-width")) || 76;
     const rowHeight = Number(schedule.cellHeight) || 76;
@@ -1783,15 +1695,15 @@ ${exportOverrideCss(width, height, topbarHeight, weekHeight, tableHeight)}`;
     canvas.height = Math.round(height * pixelRatio);
     const ctx = canvas.getContext("2d");
     ctx.scale(pixelRatio, pixelRatio);
-    const fontFamily = 'Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif';
+    const fontFamily = getComputedStyle(document.body).fontFamily || 'Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif';
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
 
     const backgroundImage = schedule.backgroundImage ? await loadCanvasImage(schedule.backgroundImage).catch(() => null) : null;
     const backgroundOpacity = clamp(Number(schedule.backgroundOpacity) || 70, 20, 100) / 100;
-    const panelAlpha = backgroundImage ? Math.max(0.38, 0.9 - backgroundOpacity * 0.46) : 1;
-    const wrapAlpha = backgroundImage ? Math.max(0.03, 0.34 - backgroundOpacity * 0.26) : 1;
-    const gridAlpha = backgroundImage ? Math.max(0.02, 0.2 - backgroundOpacity * 0.16) : 1;
+    const panelAlpha = backgroundImage ? Math.max(0.58, 0.9 - backgroundOpacity * 0.22) : 1;
+    const wrapAlpha = backgroundImage ? Math.max(0.08, 0.3 - backgroundOpacity * 0.12) : 1;
+    const gridAlpha = backgroundImage ? Math.max(0.04, 0.16 - backgroundOpacity * 0.06) : 1;
     if (backgroundImage) {
       ctx.save();
       ctx.globalAlpha = backgroundOpacity;
@@ -1800,6 +1712,8 @@ ${exportOverrideCss(width, height, topbarHeight, weekHeight, tableHeight)}`;
       ctx.filter = "none";
       drawImageCoverAdjusted(ctx, backgroundImage, 0, 0, width, height, schedule);
       ctx.restore();
+      ctx.fillStyle = `rgba(255,255,255,${Math.max(0.06, 0.22 - backgroundOpacity * 0.1)})`;
+      ctx.fillRect(0, 0, width, height);
     }
 
     ctx.fillStyle = `rgba(255,255,255,${panelAlpha})`;
@@ -1824,6 +1738,24 @@ ${exportOverrideCss(width, height, topbarHeight, weekHeight, tableHeight)}`;
     ctx.font = `500 16px ${fontFamily}`;
     ctx.fillStyle = "#6f7785";
     ctx.fillText("2026-2027 · 第一学期", 15, 52);
+    const accountText = (elements.openAccountBtn?.textContent || "").trim();
+    if (accountText) {
+      const pillWidth = Math.max(58, ctx.measureText(accountText).width + 26);
+      const menuWidth = 32;
+      const menuX = width - 18 - menuWidth / 2;
+      const pillX = menuX - menuWidth / 2 - 14 - pillWidth;
+      roundRect(ctx, pillX, 21, pillWidth, 40, 20, "rgba(234,243,255,0.78)");
+      strokeRoundRect(ctx, pillX + 0.5, 21.5, pillWidth - 1, 39, 20, "rgba(25,118,223,0.2)", 1);
+      ctx.fillStyle = "#1976df";
+      ctx.font = `700 16px ${fontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(accountText, pillX + pillWidth / 2, 41);
+      ctx.strokeStyle = "#1976df";
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = "round";
+      [32, 41, 50].forEach((y) => drawLine(ctx, menuX - 10, y, menuX + 10, y));
+    }
 
     const dayWidth = (width - timeWidth) / days.length;
     ctx.textAlign = "center";
@@ -1856,11 +1788,11 @@ ${exportOverrideCss(width, height, topbarHeight, weekHeight, tableHeight)}`;
       ctx.fillStyle = "#1e2530";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = `400 15px ${fontFamily}`;
+      ctx.font = `400 14px ${fontFamily}`;
       ctx.fillText(time[0] || "", timeWidth / 2, y + 15);
-      ctx.font = `400 26px ${fontFamily}`;
+      ctx.font = `400 22px ${fontFamily}`;
       ctx.fillText(String(node), timeWidth / 2, y + rowHeight / 2);
-      ctx.font = `400 15px ${fontFamily}`;
+      ctx.font = `400 14px ${fontFamily}`;
       ctx.fillText(time[1] || "", timeWidth / 2, y + rowHeight - 15);
     }
     drawDashedLine(ctx, 0, height, width, height, "rgba(30,37,48,0.08)");
@@ -1880,10 +1812,10 @@ ${exportOverrideCss(width, height, topbarHeight, weekHeight, tableHeight)}`;
       const bg = tintColor(item.course.color, item.isActive ? 0.76 : 0.88);
       const textColor = item.isActive ? courseTextColor(item.course.color) : "#6f7785";
       ctx.save();
-      ctx.globalAlpha = backgroundImage ? 0.93 : 1;
+      ctx.globalAlpha = backgroundImage ? 0.9 : 1;
       roundRect(ctx, x, y, w, h, 10, bg);
       ctx.restore();
-      strokeRoundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 10, "rgba(255,255,255,0.36)", 1);
+      strokeRoundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 10, "rgba(255,255,255,0.42)", 1);
       ctx.save();
       ctx.globalAlpha = 0.82;
       roundRect(ctx, x, y, w, 6, { tl: 10, tr: 10, br: 0, bl: 0 }, item.isActive ? item.course.color : "#c7ced6");
@@ -1895,8 +1827,8 @@ ${exportOverrideCss(width, height, topbarHeight, weekHeight, tableHeight)}`;
       ctx.fillStyle = textColor;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = `${item.laneCount > 1 ? 600 : 650} ${item.laneCount > 1 ? 11 : 13}px ${fontFamily}`;
-      drawWrappedCenteredLines(ctx, lines, x + 4, y + 8, w - 8, h - 12, item.laneCount > 1 ? 13 : 15);
+      ctx.font = `${item.laneCount > 1 ? 540 : 580} ${item.laneCount > 1 ? 10.5 : 11.5}px ${fontFamily}`;
+      drawWrappedCenteredLines(ctx, lines, x + 4, y + 8, w - 8, h - 12, item.laneCount > 1 ? 12.5 : 13.5);
     });
 
     return new Promise((resolve, reject) => {
@@ -2140,8 +2072,12 @@ ${exportOverrideCss(width, height, topbarHeight, weekHeight, tableHeight)}`;
   }
 
 
-  function showToast() {
-    // Toasts are intentionally disabled; the UI should stay quiet unless a panel itself shows status.
+  function showToast(message) {
+    if (!elements.toast || !message) return;
+    elements.toast.textContent = message;
+    elements.toast.classList.add("show");
+    window.clearTimeout(showToast.timer);
+    showToast.timer = window.setTimeout(() => elements.toast.classList.remove("show"), 1500);
   }
 
   elements.prevWeekBtn?.addEventListener("click", () => {
