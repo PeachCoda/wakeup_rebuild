@@ -395,8 +395,7 @@
     Object.assign(schedule, cloneBackgroundSettings(backgroundDraft));
     saveState();
     applyScheduleBackground(schedule);
-    backgroundDraft = cloneBackgroundSettings(schedule);
-    updateBackgroundSettingsUi(backgroundDraft);
+    closeBackgroundPanel();
     showToast("背景已应用");
   }
 
@@ -2129,7 +2128,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-39").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-40").catch(() => {});
     });
   }
 
