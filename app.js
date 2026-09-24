@@ -1673,90 +1673,104 @@
   async function renderScheduleImageBlob(schedule) {
     const days = visibleDays(schedule);
     const weekStart = addDays(parseISODate(schedule.startDate), (state.selectedWeek - 1) * 7);
-    const width = 920;
-    const margin = 22;
-    const titleHeight = 118;
-    const dateHeight = 86;
-    const timeWidth = 76;
-    const rowHeight = 104;
-    const height = margin * 2 + titleHeight + dateHeight + rowHeight * schedule.nodes;
+    const shellRect = elements.appShell?.getBoundingClientRect();
+    const topbarRect = document.querySelector(".topbar")?.getBoundingClientRect();
+    const weekRect = elements.weekStrip?.getBoundingClientRect();
+    const cssWidth = Math.round(shellRect?.width || Math.min(window.innerWidth || 460, 520));
+    const width = clamp(cssWidth, 320, 560);
+    const timeWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--time-width")) || 76;
+    const rowHeight = Number(schedule.cellHeight) || 76;
+    const topbarHeight = Math.round(topbarRect?.height || 92);
+    const weekHeight = Math.round(weekRect?.height || 56);
+    const bodyTop = topbarHeight + weekHeight;
+    const height = bodyTop + rowHeight * schedule.nodes;
+    const pixelRatio = Math.min(3, Math.max(2, window.devicePixelRatio || 2));
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
     const ctx = canvas.getContext("2d");
-    const fontFamily = '"Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", SimSun, serif';
+    ctx.scale(pixelRatio, pixelRatio);
+    const fontFamily = 'Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif';
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
+
     const backgroundImage = schedule.backgroundImage ? await loadCanvasImage(schedule.backgroundImage).catch(() => null) : null;
     const backgroundOpacity = clamp(Number(schedule.backgroundOpacity) || 70, 20, 100) / 100;
+    const panelAlpha = backgroundImage ? Math.max(0.38, 0.9 - backgroundOpacity * 0.46) : 1;
+    const wrapAlpha = backgroundImage ? Math.max(0.03, 0.34 - backgroundOpacity * 0.26) : 1;
+    const gridAlpha = backgroundImage ? Math.max(0.02, 0.2 - backgroundOpacity * 0.16) : 1;
     if (backgroundImage) {
       ctx.save();
       ctx.globalAlpha = backgroundOpacity;
       ctx.filter = "blur(24px)";
-      drawImageCoverAdjusted(ctx, backgroundImage, -36, -36, width + 72, height + 72, schedule, 1.08);
+      drawImageCoverAdjusted(ctx, backgroundImage, -30, -30, width + 60, height + 60, schedule, 1.08);
       ctx.filter = "none";
       drawImageCoverAdjusted(ctx, backgroundImage, 0, 0, width, height, schedule);
       ctx.restore();
-      ctx.fillStyle = `rgba(255, 255, 255, ${(0.7 - backgroundOpacity * 0.22).toFixed(2)})`;
-      ctx.fillRect(0, 0, width, height);
     }
-    roundRect(ctx, 12, 12, width - 24, height - 24, 28, backgroundImage ? `rgba(255, 255, 255, ${(0.76 - backgroundOpacity * 0.22).toFixed(2)})` : "#ffffff");
 
-    ctx.fillStyle = "#1f2937";
-    ctx.font = `600 46px ${fontFamily}`;
+    ctx.fillStyle = `rgba(255,255,255,${panelAlpha})`;
+    ctx.fillRect(0, 0, width, topbarHeight);
+    ctx.fillStyle = `rgba(255,255,255,${panelAlpha})`;
+    ctx.fillRect(0, topbarHeight, width, weekHeight);
+    ctx.fillStyle = `rgba(255,255,255,${wrapAlpha})`;
+    ctx.fillRect(0, bodyTop, width, height - bodyTop);
+    ctx.fillStyle = `rgba(255,255,255,${gridAlpha})`;
+    ctx.fillRect(0, bodyTop, width, rowHeight * schedule.nodes);
+
+    ctx.strokeStyle = "rgba(30,37,48,0.10)";
+    ctx.lineWidth = 1;
+    drawLine(ctx, 0, topbarHeight, width, topbarHeight);
+    drawLine(ctx, 0, bodyTop, width, bodyTop);
+
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.fillText(`第 ${state.selectedWeek} 周`, margin, margin);
-    ctx.font = `400 24px ${fontFamily}`;
-    ctx.fillStyle = "#64748b";
-    ctx.fillText(`${schedule.name || "FakeUp"} · ${formatWeekSubtitle(schedule, weekStart)}`, margin, margin + 58);
+    ctx.fillStyle = "#1e2530";
+    ctx.font = `700 30px ${fontFamily}`;
+    ctx.fillText(`第 ${state.selectedWeek} 周`, 15, 12);
+    ctx.font = `500 16px ${fontFamily}`;
+    ctx.fillStyle = "#6f7785";
+    ctx.fillText("2026-2027 · 第一学期", 15, 52);
 
-    const gridLeft = margin;
-    const gridTop = margin + titleHeight;
-    const dateTop = gridTop;
-    const bodyTop = gridTop + dateHeight;
-    const gridWidth = width - margin * 2;
-    const dayWidth = (gridWidth - timeWidth) / days.length;
-
-    ctx.strokeStyle = "#e5e7eb";
-    ctx.lineWidth = 2;
-    drawLine(ctx, gridLeft, bodyTop, gridLeft + gridWidth, bodyTop);
-    drawLine(ctx, gridLeft + timeWidth, bodyTop, gridLeft + timeWidth, bodyTop + rowHeight * schedule.nodes);
-
+    const dayWidth = (width - timeWidth) / days.length;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `400 26px ${fontFamily}`;
-    ctx.fillStyle = "#334155";
-    ctx.fillText(`${weekStart.getMonth() + 1}月`, gridLeft + timeWidth / 2, dateTop + dateHeight / 2);
+    ctx.fillStyle = "#1e2530";
+    ctx.font = `400 17px ${fontFamily}`;
+    ctx.fillText(`${weekStart.getMonth() + 1}月`, timeWidth / 2, topbarHeight + weekHeight / 2);
     days.forEach((day, index) => {
       const date = addDays(weekStart, day - 1);
-      const centerX = gridLeft + timeWidth + dayWidth * index + dayWidth / 2;
+      const centerX = timeWidth + dayWidth * index + dayWidth / 2;
       const isToday = isSameDate(date, today);
-      if (isToday) {
-        roundRect(ctx, centerX - 30, dateTop + 8, 60, 70, 20, "#dbeafe");
-      }
-      ctx.fillStyle = isToday ? "#1976e8" : "#1f2937";
-      ctx.font = `400 24px ${fontFamily}`;
-      ctx.fillText(dayNames[day - 1], centerX, dateTop + 26);
-      ctx.font = `400 32px ${fontFamily}`;
-      ctx.fillText(String(date.getDate()), centerX, dateTop + 62);
-      drawLine(ctx, gridLeft + timeWidth + dayWidth * index, bodyTop, gridLeft + timeWidth + dayWidth * index, bodyTop + rowHeight * schedule.nodes);
+      if (isToday) roundRect(ctx, centerX - 18, topbarHeight + 8, 36, weekHeight - 14, 14, "rgba(219,234,254,0.86)");
+      ctx.fillStyle = isToday ? "#1976df" : "#1e2530";
+      ctx.font = `400 15px ${fontFamily}`;
+      ctx.fillText(dayNames[day - 1], centerX, topbarHeight + 18);
+      ctx.font = `400 25px ${fontFamily}`;
+      ctx.fillText(String(date.getDate()), centerX, topbarHeight + 42);
     });
-    drawLine(ctx, gridLeft + gridWidth, bodyTop, gridLeft + gridWidth, bodyTop + rowHeight * schedule.nodes);
+
+    ctx.strokeStyle = "rgba(30,37,48,0.16)";
+    ctx.lineWidth = 1;
+    drawLine(ctx, timeWidth, bodyTop, timeWidth, height);
+    days.forEach((_, index) => drawLine(ctx, timeWidth + dayWidth * index, bodyTop, timeWidth + dayWidth * index, height));
+    drawLine(ctx, width, bodyTop, width, height);
 
     for (let node = 1; node <= schedule.nodes; node += 1) {
       const y = bodyTop + (node - 1) * rowHeight;
-      drawDashedLine(ctx, gridLeft, y, gridLeft + gridWidth, y, "#e7edf3");
-      ctx.fillStyle = "#1f2937";
+      drawDashedLine(ctx, 0, y, width, y, "rgba(30,37,48,0.08)");
       const time = schedule.timeTable[node - 1] || defaultTimes[node - 1] || ["", ""];
-      ctx.font = `400 22px ${fontFamily}`;
-      ctx.fillText(time[0] || "", gridLeft + timeWidth / 2, y + 25);
-      ctx.font = `400 34px ${fontFamily}`;
-      ctx.fillText(String(node), gridLeft + timeWidth / 2, y + rowHeight / 2);
-      ctx.font = `400 22px ${fontFamily}`;
-      ctx.fillText(time[1] || "", gridLeft + timeWidth / 2, y + rowHeight - 24);
+      ctx.fillStyle = "#1e2530";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `400 15px ${fontFamily}`;
+      ctx.fillText(time[0] || "", timeWidth / 2, y + 15);
+      ctx.font = `400 26px ${fontFamily}`;
+      ctx.fillText(String(node), timeWidth / 2, y + rowHeight / 2);
+      ctx.font = `400 15px ${fontFamily}`;
+      ctx.fillText(time[1] || "", timeWidth / 2, y + rowHeight - 15);
     }
-    drawDashedLine(ctx, gridLeft, bodyTop + rowHeight * schedule.nodes, gridLeft + gridWidth, bodyTop + rowHeight * schedule.nodes, "#e7edf3");
+    drawDashedLine(ctx, 0, height, width, height, "rgba(30,37,48,0.08)");
 
     const visibleItems = collapseEquivalentSessions(schedule.courses
       .flatMap((course) => courseRenderItems(course, state.selectedWeek))
@@ -1765,34 +1779,31 @@
     layoutCourseItems(visibleItems).forEach((item) => {
       const dayIndex = days.indexOf(item.day);
       if (dayIndex < 0) return;
-      const gap = 2;
-      const x = gridLeft + timeWidth + dayWidth * dayIndex + dayWidth * item.laneIndex / item.laneCount + gap;
+      const gap = 1;
+      const x = timeWidth + dayWidth * dayIndex + dayWidth * item.laneIndex / item.laneCount + gap;
       const y = bodyTop + (item.start - 1) * rowHeight + gap;
       const w = dayWidth / item.laneCount - gap * 2;
       const h = (item.end - item.start + 1) * rowHeight - gap * 2;
-      const cardGradient = ctx.createLinearGradient(x, y, x, y + h);
-      cardGradient.addColorStop(0, tintColor(item.course.color, item.isActive ? 0.7 : 0.86));
-      cardGradient.addColorStop(0.62, tintColor(item.course.color, item.isActive ? 0.82 : 0.92));
-      cardGradient.addColorStop(1, tintColor(item.course.color, item.isActive ? 0.9 : 0.96));
-      const stripeGradient = ctx.createLinearGradient(x, y, x + w, y);
-      stripeGradient.addColorStop(0, tintColor(item.course.color, item.isActive ? 0.16 : 0.48));
-      stripeGradient.addColorStop(1, tintColor(item.course.color, item.isActive ? 0.36 : 0.64));
-      const textColor = item.isActive ? courseTextColor(item.course.color) : "#536071";
+      const bg = tintColor(item.course.color, item.isActive ? 0.76 : 0.88);
+      const textColor = item.isActive ? courseTextColor(item.course.color) : "#6f7785";
       ctx.save();
-      ctx.shadowColor = item.isActive ? "rgba(42, 82, 108, 0.08)" : "rgba(42, 82, 108, 0.04)";
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetY = 3;
-      roundRect(ctx, x, y, w, h, 18, cardGradient);
+      ctx.globalAlpha = backgroundImage ? 0.93 : 1;
+      roundRect(ctx, x, y, w, h, 10, bg);
       ctx.restore();
-      strokeRoundRect(ctx, x + 0.6, y + 0.6, w - 1.2, h - 1.2, 18, "rgba(255, 255, 255, 0.66)", 1.2);
-      roundRect(ctx, x, y, w, 12, { tl: 18, tr: 18, br: 0, bl: 0 }, stripeGradient);
+      strokeRoundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 10, "rgba(255,255,255,0.36)", 1);
+      ctx.save();
+      ctx.globalAlpha = 0.82;
+      roundRect(ctx, x, y, w, 6, { tl: 10, tr: 10, br: 0, bl: 0 }, item.isActive ? item.course.color : "#c7ced6");
+      ctx.restore();
       const lines = [item.course.name];
       if (!item.isActive) lines.push("非本周");
       if (item.teacher) lines.push(item.teacher);
       if (item.room) lines.push(item.room);
       ctx.fillStyle = textColor;
-      ctx.font = `600 ${item.laneCount > 1 ? 18 : 21}px ${fontFamily}`;
-      drawWrappedCenteredLines(ctx, lines, x + 9, y + 18, w - 18, h - 28, item.laneCount > 1 ? 23 : 27);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `${item.laneCount > 1 ? 600 : 650} ${item.laneCount > 1 ? 11 : 13}px ${fontFamily}`;
+      drawWrappedCenteredLines(ctx, lines, x + 4, y + 8, w - 8, h - 12, item.laneCount > 1 ? 13 : 15);
     });
 
     return new Promise((resolve, reject) => {
@@ -2128,7 +2139,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-40").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-41").catch(() => {});
     });
   }
 
