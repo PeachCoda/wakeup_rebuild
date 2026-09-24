@@ -65,6 +65,14 @@
     closeBackgroundBtn: document.querySelector("#closeBackgroundBtn"),
     backgroundInput: document.querySelector("#backgroundInput"),
     clearBackgroundBtn: document.querySelector("#clearBackgroundBtn"),
+    backgroundCropBackdrop: document.querySelector("#backgroundCropBackdrop"),
+    backgroundCropPanel: document.querySelector("#backgroundCropPanel"),
+    backgroundCropStage: document.querySelector("#backgroundCropStage"),
+    backgroundCropImage: document.querySelector("#backgroundCropImage"),
+    backgroundCropScaleInput: document.querySelector("#backgroundCropScaleInput"),
+    backgroundCropScaleValue: document.querySelector("#backgroundCropScaleValue"),
+    cancelBackgroundCropBtn: document.querySelector("#cancelBackgroundCropBtn"),
+    applyBackgroundCropBtn: document.querySelector("#applyBackgroundCropBtn"),
     newScheduleBtn: document.querySelector("#newScheduleBtn"),
     settingsDialog: document.querySelector("#settingsDialog"),
     settingName: document.querySelector("#settingName"),
@@ -106,6 +114,7 @@
   let signInPositionPending = null;
   let signInAccountLoggedIn = false;
   let signInAutoSubmitTimer = null;
+  let backgroundCropState = null;
   function createDefaultState() {
     const scheduleId = uid();
     return {
@@ -1671,17 +1680,29 @@
       const y = bodyTop + (item.start - 1) * rowHeight + gap;
       const w = dayWidth / item.laneCount - gap * 2;
       const h = (item.end - item.start + 1) * rowHeight - gap * 2;
-      const bg = tintColor(item.course.color, item.isActive ? 0.68 : 0.84);
+      const cardGradient = ctx.createLinearGradient(x, y, x, y + h);
+      cardGradient.addColorStop(0, tintColor(item.course.color, item.isActive ? 0.7 : 0.86));
+      cardGradient.addColorStop(0.62, tintColor(item.course.color, item.isActive ? 0.82 : 0.92));
+      cardGradient.addColorStop(1, tintColor(item.course.color, item.isActive ? 0.9 : 0.96));
+      const stripeGradient = ctx.createLinearGradient(x, y, x + w, y);
+      stripeGradient.addColorStop(0, tintColor(item.course.color, item.isActive ? 0.16 : 0.48));
+      stripeGradient.addColorStop(1, tintColor(item.course.color, item.isActive ? 0.36 : 0.64));
       const textColor = item.isActive ? courseTextColor(item.course.color) : "#536071";
-      roundRect(ctx, x, y, w, h, 18, bg);
-      roundRect(ctx, x, y, w, 12, { tl: 18, tr: 18, br: 0, bl: 0 }, tintColor(item.course.color, item.isActive ? 0.08 : 0.38));
+      ctx.save();
+      ctx.shadowColor = item.isActive ? "rgba(42, 82, 108, 0.08)" : "rgba(42, 82, 108, 0.04)";
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 3;
+      roundRect(ctx, x, y, w, h, 18, cardGradient);
+      ctx.restore();
+      strokeRoundRect(ctx, x + 0.6, y + 0.6, w - 1.2, h - 1.2, 18, "rgba(255, 255, 255, 0.66)", 1.2);
+      roundRect(ctx, x, y, w, 12, { tl: 18, tr: 18, br: 0, bl: 0 }, stripeGradient);
       const lines = [item.course.name];
       if (!item.isActive) lines.push("非本周");
       if (item.teacher) lines.push(item.teacher);
       if (item.room) lines.push(item.room);
       ctx.fillStyle = textColor;
-      ctx.font = `700 ${item.laneCount > 1 ? 19 : 22}px ${fontFamily}`;
-      drawWrappedCenteredLines(ctx, lines, x + 8, y + 18, w - 16, h - 28, item.laneCount > 1 ? 23 : 27);
+      ctx.font = `600 ${item.laneCount > 1 ? 18 : 21}px ${fontFamily}`;
+      drawWrappedCenteredLines(ctx, lines, x + 9, y + 18, w - 18, h - 28, item.laneCount > 1 ? 23 : 27);
     });
 
     return new Promise((resolve, reject) => {
@@ -1717,28 +1738,123 @@
     ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
   }
 
-  function resizeBackgroundImage(file) {
+  function readImageFile(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = reject;
-      reader.onload = () => {
-        loadCanvasImage(reader.result).then((image) => {
-          const maxSide = 960;
-          const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
-          const width = Math.max(1, Math.round(image.width * scale));
-          const height = Math.max(1, Math.round(image.height * scale));
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, width, height);
-          ctx.drawImage(image, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.78));
-        }).catch(reject);
-      };
+      reader.onload = () => loadCanvasImage(reader.result).then((image) => resolve({ image, src: reader.result })).catch(reject);
       reader.readAsDataURL(file);
     });
+  }
+
+  function openBackgroundCropper(image, src) {
+    if (!elements.backgroundCropPanel || !elements.backgroundCropStage || !elements.backgroundCropImage) return;
+    closeTopbarMenu();
+    closeBackgroundPanel();
+    const shellRect = elements.appShell?.getBoundingClientRect();
+    const aspect = shellRect?.width && shellRect?.height ? shellRect.width / shellRect.height : window.innerWidth / Math.max(1, window.innerHeight);
+    elements.backgroundCropStage.style.setProperty("--crop-aspect", String(clamp(aspect, 0.42, 1.2)));
+    elements.backgroundCropImage.src = src;
+    elements.backgroundCropBackdrop.hidden = false;
+    elements.backgroundCropPanel.hidden = false;
+    window.requestAnimationFrame(() => {
+      const rect = elements.backgroundCropStage.getBoundingClientRect();
+      const minScale = Math.max(rect.width / image.width, rect.height / image.height);
+      backgroundCropState = { image, src, minScale, scale: minScale, offsetX: 0, offsetY: 0, dragging: false, lastX: 0, lastY: 0 };
+      if (elements.backgroundCropScaleInput) elements.backgroundCropScaleInput.value = "100";
+      updateBackgroundCropTransform();
+    });
+  }
+
+  function closeBackgroundCropper() {
+    if (elements.backgroundCropBackdrop) elements.backgroundCropBackdrop.hidden = true;
+    if (elements.backgroundCropPanel) elements.backgroundCropPanel.hidden = true;
+    if (elements.backgroundCropImage) elements.backgroundCropImage.removeAttribute("src");
+    backgroundCropState = null;
+  }
+
+  function clampBackgroundCropOffset() {
+    if (!backgroundCropState || !elements.backgroundCropStage) return;
+    const rect = elements.backgroundCropStage.getBoundingClientRect();
+    const drawWidth = backgroundCropState.image.width * backgroundCropState.scale;
+    const drawHeight = backgroundCropState.image.height * backgroundCropState.scale;
+    const maxX = Math.max(0, (drawWidth - rect.width) / 2);
+    const maxY = Math.max(0, (drawHeight - rect.height) / 2);
+    backgroundCropState.offsetX = clamp(backgroundCropState.offsetX, -maxX, maxX);
+    backgroundCropState.offsetY = clamp(backgroundCropState.offsetY, -maxY, maxY);
+  }
+
+  function updateBackgroundCropTransform() {
+    if (!backgroundCropState || !elements.backgroundCropImage) return;
+    clampBackgroundCropOffset();
+    const percent = Math.round((backgroundCropState.scale / backgroundCropState.minScale) * 100);
+    if (elements.backgroundCropScaleValue) elements.backgroundCropScaleValue.textContent = `${percent}%`;
+    elements.backgroundCropImage.style.width = `${backgroundCropState.image.width}px`;
+    elements.backgroundCropImage.style.height = `${backgroundCropState.image.height}px`;
+    elements.backgroundCropImage.style.transform = `translate(calc(-50% + ${backgroundCropState.offsetX}px), calc(-50% + ${backgroundCropState.offsetY}px)) scale(${backgroundCropState.scale})`;
+  }
+
+  function updateBackgroundCropScale() {
+    if (!backgroundCropState) return;
+    const ratio = clamp(Number(elements.backgroundCropScaleInput?.value) || 100, 100, 300) / 100;
+    backgroundCropState.scale = backgroundCropState.minScale * ratio;
+    updateBackgroundCropTransform();
+  }
+
+  function handleBackgroundCropPointerDown(event) {
+    if (!backgroundCropState) return;
+    backgroundCropState.dragging = true;
+    backgroundCropState.lastX = event.clientX;
+    backgroundCropState.lastY = event.clientY;
+    elements.backgroundCropStage?.setPointerCapture?.(event.pointerId);
+  }
+
+  function handleBackgroundCropPointerMove(event) {
+    if (!backgroundCropState?.dragging) return;
+    event.preventDefault();
+    backgroundCropState.offsetX += event.clientX - backgroundCropState.lastX;
+    backgroundCropState.offsetY += event.clientY - backgroundCropState.lastY;
+    backgroundCropState.lastX = event.clientX;
+    backgroundCropState.lastY = event.clientY;
+    updateBackgroundCropTransform();
+  }
+
+  function handleBackgroundCropPointerUp(event) {
+    if (!backgroundCropState) return;
+    backgroundCropState.dragging = false;
+    elements.backgroundCropStage?.releasePointerCapture?.(event.pointerId);
+  }
+
+  function renderCroppedBackground() {
+    if (!backgroundCropState || !elements.backgroundCropStage) return null;
+    const rect = elements.backgroundCropStage.getBoundingClientRect();
+    const aspect = rect.width / Math.max(1, rect.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = 1080;
+    canvas.height = Math.round(canvas.width / aspect);
+    const ctx = canvas.getContext("2d");
+    const ratio = canvas.width / rect.width;
+    const drawWidth = backgroundCropState.image.width * backgroundCropState.scale * ratio;
+    const drawHeight = backgroundCropState.image.height * backgroundCropState.scale * ratio;
+    const drawX = canvas.width / 2 + backgroundCropState.offsetX * ratio - drawWidth / 2;
+    const drawY = canvas.height / 2 + backgroundCropState.offsetY * ratio - drawHeight / 2;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(backgroundCropState.image, drawX, drawY, drawWidth, drawHeight);
+    return canvas.toDataURL("image/jpeg", 0.84);
+  }
+
+  function applyBackgroundCrop() {
+    const image = renderCroppedBackground();
+    if (!image) return;
+    const schedule = currentSchedule();
+    schedule.backgroundImage = image;
+    saveState();
+    closeBackgroundCropper();
+    applyScheduleBackground(schedule);
+    render();
+    openBackgroundPanel();
+    showToast("背景已替换");
   }
 
   async function handleBackgroundInputChange(event) {
@@ -1749,20 +1865,12 @@
       showToast("请选择图片文件");
       return;
     }
-    closeTopbarMenu();
-    showToast("正在处理背景…");
     try {
-      const image = await resizeBackgroundImage(file);
-      const schedule = currentSchedule();
-      schedule.backgroundImage = image;
-      saveState();
-      applyScheduleBackground(schedule);
-      render();
-      openBackgroundPanel();
-      showToast("背景已替换");
+      const { image, src } = await readImageFile(file);
+      openBackgroundCropper(image, src);
     } catch (error) {
-      console.warn("替换背景失败。", error);
-      showToast("背景替换失败");
+      console.warn("读取背景失败。", error);
+      showToast("图片读取失败");
     }
   }
 
@@ -1818,7 +1926,7 @@
     return lines;
   }
 
-  function roundRect(ctx, x, y, width, height, radius, fillStyle) {
+  function traceRoundRect(ctx, x, y, width, height, radius) {
     const r = typeof radius === "number" ? { tl: radius, tr: radius, br: radius, bl: radius } : radius;
     ctx.beginPath();
     ctx.moveTo(x + r.tl, y);
@@ -1831,8 +1939,19 @@
     ctx.lineTo(x, y + r.tl);
     ctx.quadraticCurveTo(x, y, x + r.tl, y);
     ctx.closePath();
+  }
+
+  function roundRect(ctx, x, y, width, height, radius, fillStyle) {
+    traceRoundRect(ctx, x, y, width, height, radius);
     ctx.fillStyle = fillStyle;
     ctx.fill();
+  }
+
+  function strokeRoundRect(ctx, x, y, width, height, radius, strokeStyle, lineWidth = 1) {
+    traceRoundRect(ctx, x, y, width, height, radius);
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
   }
 
   function drawLine(ctx, x1, y1, x2, y2) {
@@ -1946,6 +2065,14 @@
   elements.backgroundOpacityInput?.addEventListener("input", updateBackgroundOpacity);
   elements.backgroundInput?.addEventListener("change", handleBackgroundInputChange);
   elements.clearBackgroundBtn?.addEventListener("click", clearBackgroundImage);
+  elements.backgroundCropBackdrop?.addEventListener("click", closeBackgroundCropper);
+  elements.cancelBackgroundCropBtn?.addEventListener("click", closeBackgroundCropper);
+  elements.applyBackgroundCropBtn?.addEventListener("click", applyBackgroundCrop);
+  elements.backgroundCropScaleInput?.addEventListener("input", updateBackgroundCropScale);
+  elements.backgroundCropStage?.addEventListener("pointerdown", handleBackgroundCropPointerDown);
+  elements.backgroundCropStage?.addEventListener("pointermove", handleBackgroundCropPointerMove);
+  elements.backgroundCropStage?.addEventListener("pointerup", handleBackgroundCropPointerUp);
+  elements.backgroundCropStage?.addEventListener("pointercancel", handleBackgroundCropPointerUp);
   elements.newScheduleBtn.addEventListener("click", createNewSchedule);
   elements.saveSettingsBtn.addEventListener("click", saveSettingsFromDialog);
   elements.deleteScheduleBtn.addEventListener("click", deleteCurrentSchedule);
@@ -1958,7 +2085,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-35").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-36").catch(() => {});
     });
   }
 

@@ -3154,3 +3154,95 @@ html.has-custom-bg .course-card::before {
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(25, 118, 223, 0.22), inset 0 0 0 4px rgba(25, 118, 223, 0.72);
 }
+
+
+/* Hide redundant corner close buttons; every panel still closes from backdrop or footer actions. */
+.signin-head .icon-button,
+.background-head .icon-button,
+.week-picker-close,
+.dialog-header .icon-button {
+  display: none !important;
+}
+
+.background-crop-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  background: rgba(15, 23, 42, 0.24);
+  backdrop-filter: blur(3px) saturate(0.96);
+  -webkit-backdrop-filter: blur(3px) saturate(0.96);
+}
+
+.background-crop-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 220;
+  width: min(430px, calc(100vw - 48px));
+  display: grid;
+  gap: 13px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(245, 253, 255, 0.7));
+  box-shadow: 0 22px 70px rgba(24, 64, 86, 0.2);
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(22px) saturate(1.12);
+  -webkit-backdrop-filter: blur(22px) saturate(1.12);
+}
+
+.background-crop-backdrop[hidden],
+.background-crop-panel[hidden] {
+  display: none !important;
+}
+
+.background-crop-stage {
+  --crop-aspect: 0.5;
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--crop-aspect);
+  max-height: min(50svh, 520px);
+  min-height: 230px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.58);
+  touch-action: none;
+  cursor: grab;
+}
+
+.background-crop-stage:active {
+  cursor: grabbing;
+}
+
+.background-crop-stage::after {
+  content: "拖动图片调整位置";
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: rgba(73, 85, 99, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.background-crop-stage img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  max-height: none;
+  transform-origin: center;
+  user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform;
+}
+
+.background-crop-range {
+  gap: 7px;
+}
