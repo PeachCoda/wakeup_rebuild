@@ -430,7 +430,6 @@
   }
 
   function renderWeekHeader(schedule) {
-    const weekStart = addDays(parseISODate(schedule.startDate), (state.selectedWeek - 1) * 7);
     const weekEnd = addDays(weekStart, 6);
     const status = weekStatus(schedule);
     elements.weekTitle.textContent = `第 ${state.selectedWeek} 周${status}`;
@@ -1677,18 +1676,14 @@
   async function renderScheduleCanvasImageBlob(schedule) {
     await document.fonts?.ready?.catch?.(() => {});
     const days = visibleDays(schedule);
-    const weekStart = addDays(parseISODate(schedule.startDate), (state.selectedWeek - 1) * 7);
     const shellRect = elements.appShell?.getBoundingClientRect();
-    const topbarRect = document.querySelector(".topbar")?.getBoundingClientRect();
-    const weekRect = elements.weekStrip?.getBoundingClientRect();
     const cssWidth = Math.round(document.querySelector(".main")?.getBoundingClientRect().width || shellRect?.width || Math.min(window.innerWidth || 460, 520));
     const width = clamp(cssWidth, 320, 560);
-    const timeWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--time-width")) || 76;
+    const cssTimeWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--time-width")) || 60;
+    const timeWidth = clamp(cssTimeWidth - 8, 46, 54);
     const rowHeight = Number(schedule.cellHeight) || 76;
-    const topbarHeight = Math.round(topbarRect?.height || 92);
-    const weekHeight = Math.round(weekRect?.height || 56);
-    const bodyTop = topbarHeight + weekHeight;
-    const height = bodyTop + rowHeight * schedule.nodes;
+    const bodyTop = 0;
+    const height = rowHeight * schedule.nodes;
     const pixelRatio = Math.min(3, Math.max(2, window.devicePixelRatio || 2));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(width * pixelRatio);
@@ -1701,9 +1696,8 @@
 
     const backgroundImage = schedule.backgroundImage ? await loadCanvasImage(schedule.backgroundImage).catch(() => null) : null;
     const backgroundOpacity = clamp(Number(schedule.backgroundOpacity) || 70, 20, 100) / 100;
-    const panelAlpha = backgroundImage ? Math.max(0.58, 0.9 - backgroundOpacity * 0.22) : 1;
-    const wrapAlpha = backgroundImage ? Math.max(0.08, 0.3 - backgroundOpacity * 0.12) : 1;
-    const gridAlpha = backgroundImage ? Math.max(0.04, 0.16 - backgroundOpacity * 0.06) : 1;
+    const wrapAlpha = backgroundImage ? Math.max(0.015, 0.14 - backgroundOpacity * 0.08) : 1;
+    const gridAlpha = backgroundImage ? Math.max(0.012, 0.08 - backgroundOpacity * 0.04) : 1;
     if (backgroundImage) {
       ctx.save();
       ctx.globalAlpha = backgroundOpacity;
@@ -1712,69 +1706,16 @@
       ctx.filter = "none";
       drawImageCoverAdjusted(ctx, backgroundImage, 0, 0, width, height, schedule);
       ctx.restore();
-      ctx.fillStyle = `rgba(255,255,255,${Math.max(0.06, 0.22 - backgroundOpacity * 0.1)})`;
+      ctx.fillStyle = `rgba(255,255,255,${Math.max(0.02, 0.1 - backgroundOpacity * 0.05)})`;
       ctx.fillRect(0, 0, width, height);
     }
 
-    ctx.fillStyle = `rgba(255,255,255,${panelAlpha})`;
-    ctx.fillRect(0, 0, width, topbarHeight);
-    ctx.fillStyle = `rgba(255,255,255,${panelAlpha})`;
-    ctx.fillRect(0, topbarHeight, width, weekHeight);
     ctx.fillStyle = `rgba(255,255,255,${wrapAlpha})`;
     ctx.fillRect(0, bodyTop, width, height - bodyTop);
     ctx.fillStyle = `rgba(255,255,255,${gridAlpha})`;
     ctx.fillRect(0, bodyTop, width, rowHeight * schedule.nodes);
 
-    ctx.strokeStyle = "rgba(30,37,48,0.10)";
-    ctx.lineWidth = 1;
-    drawLine(ctx, 0, topbarHeight, width, topbarHeight);
-    drawLine(ctx, 0, bodyTop, width, bodyTop);
-
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillStyle = "#1e2530";
-    ctx.font = `700 30px ${fontFamily}`;
-    ctx.fillText(`第 ${state.selectedWeek} 周`, 15, 12);
-    ctx.font = `500 16px ${fontFamily}`;
-    ctx.fillStyle = "#6f7785";
-    ctx.fillText("2026-2027 · 第一学期", 15, 52);
-    const accountText = (elements.openAccountBtn?.textContent || "").trim();
-    if (accountText) {
-      const pillWidth = Math.max(58, ctx.measureText(accountText).width + 26);
-      const menuWidth = 32;
-      const menuX = width - 18 - menuWidth / 2;
-      const pillX = menuX - menuWidth / 2 - 14 - pillWidth;
-      roundRect(ctx, pillX, 21, pillWidth, 40, 20, "rgba(234,243,255,0.78)");
-      strokeRoundRect(ctx, pillX + 0.5, 21.5, pillWidth - 1, 39, 20, "rgba(25,118,223,0.2)", 1);
-      ctx.fillStyle = "#1976df";
-      ctx.font = `700 16px ${fontFamily}`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(accountText, pillX + pillWidth / 2, 41);
-      ctx.strokeStyle = "#1976df";
-      ctx.lineWidth = 2.2;
-      ctx.lineCap = "round";
-      [32, 41, 50].forEach((y) => drawLine(ctx, menuX - 10, y, menuX + 10, y));
-    }
-
     const dayWidth = (width - timeWidth) / days.length;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#1e2530";
-    ctx.font = `400 17px ${fontFamily}`;
-    ctx.fillText(`${weekStart.getMonth() + 1}月`, timeWidth / 2, topbarHeight + weekHeight / 2);
-    days.forEach((day, index) => {
-      const date = addDays(weekStart, day - 1);
-      const centerX = timeWidth + dayWidth * index + dayWidth / 2;
-      const isToday = isSameDate(date, today);
-      if (isToday) roundRect(ctx, centerX - 18, topbarHeight + 8, 36, weekHeight - 14, 14, "rgba(219,234,254,0.86)");
-      ctx.fillStyle = isToday ? "#1976df" : "#1e2530";
-      ctx.font = `400 15px ${fontFamily}`;
-      ctx.fillText(dayNames[day - 1], centerX, topbarHeight + 18);
-      ctx.font = `400 25px ${fontFamily}`;
-      ctx.fillText(String(date.getDate()), centerX, topbarHeight + 42);
-    });
-
     ctx.strokeStyle = "rgba(30,37,48,0.16)";
     ctx.lineWidth = 1;
     drawLine(ctx, timeWidth, bodyTop, timeWidth, height);
@@ -1788,12 +1729,12 @@
       ctx.fillStyle = "#1e2530";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = `400 14px ${fontFamily}`;
-      ctx.fillText(time[0] || "", timeWidth / 2, y + 15);
-      ctx.font = `400 22px ${fontFamily}`;
+      ctx.font = `400 12px ${fontFamily}`;
+      ctx.fillText(time[0] || "", timeWidth / 2, y + 14);
+      ctx.font = `400 20px ${fontFamily}`;
       ctx.fillText(String(node), timeWidth / 2, y + rowHeight / 2);
-      ctx.font = `400 14px ${fontFamily}`;
-      ctx.fillText(time[1] || "", timeWidth / 2, y + rowHeight - 15);
+      ctx.font = `400 12px ${fontFamily}`;
+      ctx.fillText(time[1] || "", timeWidth / 2, y + rowHeight - 14);
     }
     drawDashedLine(ctx, 0, height, width, height, "rgba(30,37,48,0.08)");
 
@@ -1812,7 +1753,7 @@
       const bg = tintColor(item.course.color, item.isActive ? 0.76 : 0.88);
       const textColor = item.isActive ? courseTextColor(item.course.color) : "#6f7785";
       ctx.save();
-      ctx.globalAlpha = backgroundImage ? 0.9 : 1;
+      ctx.globalAlpha = backgroundImage ? 0.88 : 1;
       roundRect(ctx, x, y, w, h, 10, bg);
       ctx.restore();
       strokeRoundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 10, "rgba(255,255,255,0.42)", 1);
