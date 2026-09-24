@@ -3077,7 +3077,7 @@ body {
 }
 
 .timetable {
-  min-height: calc(var(--cell-height) * 13) !important;
+  min-height: calc(var(--cell-height) * 12) !important;
 }
 
 

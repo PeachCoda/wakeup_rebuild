@@ -5,6 +5,7 @@
   const signInUsernameStorageKey = "fakeup-skl-username-v1";
   const dayNames = ["一", "二", "三", "四", "五", "六", "日"];
   const termWeeks = 17;
+  const maxNodes = 12;
   const oldPalette = ["#1aa6a6", "#258bd2", "#d48a35", "#7c58d9", "#e86852", "#2fa56f", "#c15ba5", "#5b8def", "#c47f2c", "#15a3c7", "#df5f8f", "#6d8f28"];
   const palette = ["#7dd8d5", "#9cccf5", "#f5b8ae", "#cbb7f4", "#9edfc1", "#f4cd86", "#efb6d3", "#a9d9f4", "#c8e4a5", "#b9d9ff", "#f7c1b0", "#a8e2df"];
   const defaultTimes = [
@@ -19,8 +20,7 @@
     ["16:05", "16:50"],
     ["18:30", "19:15"],
     ["19:20", "20:05"],
-    ["20:10", "20:55"],
-    ["21:00", "21:45"]
+    ["20:10", "20:55"]
   ];
 
   const today = startOfDay(new Date());
@@ -124,7 +124,7 @@
           name: "我的课表",
           startDate: fallbackStart,
           totalWeeks: termWeeks,
-          nodes: 13,
+          nodes: maxNodes,
           cellHeight: 76,
           showWeekend: false,
           showOtherWeek: true,
@@ -135,7 +135,7 @@
           backgroundScale: 1,
           backgroundOffsetX: 0,
           backgroundOffsetY: 0,
-          timeTable: cloneDefaultTimeTable(13),
+          timeTable: cloneDefaultTimeTable(maxNodes),
           courses: []
         }
       ]
@@ -163,7 +163,7 @@
         name: schedule.name || "我的课表",
         startDate: schedule.startDate || fallbackStart,
         totalWeeks: termWeeks,
-        nodes: 13,
+        nodes: maxNodes,
         cellHeight: Math.min(clamp(Number(schedule.cellHeight) || 76, 72, 132), 76),
         showWeekend: false,
         showOtherWeek: schedule.showOtherWeek !== false,
@@ -174,7 +174,7 @@
         backgroundScale: clamp(Number(schedule.backgroundScale) || 1, 1, 3),
         backgroundOffsetX: clamp(Number(schedule.backgroundOffsetX) || 0, -1, 1),
         backgroundOffsetY: clamp(Number(schedule.backgroundOffsetY) || 0, -1, 1),
-        timeTable: cloneDefaultTimeTable(13),
+        timeTable: cloneDefaultTimeTable(maxNodes),
         courses: Array.isArray(schedule.courses) ? schedule.courses.map(normalizeCourse).filter(Boolean) : []
       }))
     };
@@ -232,8 +232,8 @@
 
   function normalizeSession(session) {
     if (!session) return null;
-    const start = clamp(Number(session.start) || 1, 1, 13);
-    const end = clamp(Number(session.end) || start, start, 13);
+    const start = clamp(Number(session.start) || 1, 1, maxNodes);
+    const end = clamp(Number(session.end) || start, start, maxNodes);
     const weeks = uniqueNumbers(session.weeks || [1]).filter((week) => week >= 1 && week <= termWeeks);
     if (!weeks.length) return null;
     return {
@@ -1268,11 +1268,11 @@
     schedule.name = elements.settingName.value.trim() || "我的课表";
     schedule.startDate = elements.settingStartDate.value || fallbackStart;
     schedule.totalWeeks = termWeeks;
-    schedule.nodes = 13;
+    schedule.nodes = maxNodes;
     schedule.cellHeight = clamp(Number(elements.settingCellHeight.value) || 76, 72, 96);
     schedule.showWeekend = false;
     schedule.showTime = true;
-    schedule.timeTable = cloneDefaultTimeTable(13);
+    schedule.timeTable = cloneDefaultTimeTable(maxNodes);
     schedule.courses = schedule.courses
       .map((course) => trimCourseToSchedule(course, schedule))
       .filter(Boolean);
@@ -1347,11 +1347,11 @@
       color: courseColor(index),
       ...course
     })).filter(Boolean);
-    schedule.nodes = 13;
+    schedule.nodes = maxNodes;
     if (options.startDate) schedule.startDate = options.startDate;
     schedule.totalWeeks = termWeeks;
     schedule.showWeekend = false;
-    schedule.timeTable = cloneDefaultTimeTable(13);
+    schedule.timeTable = cloneDefaultTimeTable(maxNodes);
     state.selectedWeek = getCurrentWeek(schedule);
     saveState();
     render();
@@ -1683,8 +1683,10 @@
     const cssTimeWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--time-width")) || 60;
     const timeWidth = clamp(cssTimeWidth - 8, 46, 54);
     const rowHeight = Number(schedule.cellHeight) || 76;
-    const bodyTop = 0;
-    const height = rowHeight * schedule.nodes;
+    const exportNodes = Math.min(Number(schedule.nodes) || maxNodes, maxNodes);
+    const exportPadY = 14;
+    const bodyTop = exportPadY;
+    const height = rowHeight * exportNodes + exportPadY * 2;
     const pixelRatio = Math.min(3, Math.max(2, window.devicePixelRatio || 2));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(width * pixelRatio);
@@ -1697,24 +1699,26 @@
 
     const backgroundImage = schedule.backgroundImage ? await loadCanvasImage(schedule.backgroundImage).catch(() => null) : null;
     const backgroundOpacity = clamp(Number(schedule.backgroundOpacity) || 70, 20, 100) / 100;
-    const wrapAlpha = backgroundImage ? Math.max(0.015, 0.14 - backgroundOpacity * 0.08) : 1;
-    const gridAlpha = backgroundImage ? Math.max(0.012, 0.08 - backgroundOpacity * 0.04) : 1;
+    const wrapAlpha = backgroundImage ? Math.max(0.03, 0.34 - backgroundOpacity * 0.26) : 1;
+    const gridAlpha = backgroundImage ? Math.max(0.02, 0.2 - backgroundOpacity * 0.16) : 1;
     if (backgroundImage) {
       ctx.save();
-      ctx.globalAlpha = backgroundOpacity;
-      ctx.filter = "blur(24px)";
-      drawImageCoverAdjusted(ctx, backgroundImage, -30, -30, width + 60, height + 60, schedule, 1.08);
-      ctx.filter = "none";
+      ctx.globalAlpha = backgroundOpacity * 0.78;
+      ctx.filter = "blur(24px) saturate(1.08)";
+      drawImageCoverAdjusted(ctx, backgroundImage, -34, -34, width + 68, height + 68, schedule, 1.08);
+      ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = backgroundOpacity * 0.16;
       drawImageCoverAdjusted(ctx, backgroundImage, 0, 0, width, height, schedule);
       ctx.restore();
-      ctx.fillStyle = `rgba(255,255,255,${Math.max(0.02, 0.1 - backgroundOpacity * 0.05)})`;
+      ctx.fillStyle = `rgba(255,255,255,${Math.max(0.34, 0.9 - backgroundOpacity * 0.5)})`;
       ctx.fillRect(0, 0, width, height);
     }
 
     ctx.fillStyle = `rgba(255,255,255,${wrapAlpha})`;
     ctx.fillRect(0, bodyTop, width, height - bodyTop);
     ctx.fillStyle = `rgba(255,255,255,${gridAlpha})`;
-    ctx.fillRect(0, bodyTop, width, rowHeight * schedule.nodes);
+    ctx.fillRect(0, bodyTop, width, rowHeight * exportNodes);
 
     const dayWidth = (width - timeWidth) / days.length;
     ctx.strokeStyle = "rgba(30,37,48,0.16)";
@@ -1723,7 +1727,7 @@
     days.forEach((_, index) => drawLine(ctx, timeWidth + dayWidth * index, bodyTop, timeWidth + dayWidth * index, height));
     drawLine(ctx, width, bodyTop, width, height);
 
-    for (let node = 1; node <= schedule.nodes; node += 1) {
+    for (let node = 1; node <= exportNodes; node += 1) {
       const y = bodyTop + (node - 1) * rowHeight;
       drawDashedLine(ctx, 0, y, width, y, "rgba(30,37,48,0.08)");
       const time = schedule.timeTable[node - 1] || defaultTimes[node - 1] || ["", ""];
@@ -1737,7 +1741,7 @@
       ctx.font = `400 12px ${fontFamily}`;
       ctx.fillText(time[1] || "", timeWidth / 2, y + rowHeight - 14);
     }
-    drawDashedLine(ctx, 0, height, width, height, "rgba(30,37,48,0.08)");
+    drawDashedLine(ctx, 0, bodyTop + rowHeight * exportNodes, width, bodyTop + rowHeight * exportNodes, "rgba(30,37,48,0.08)");
 
     const visibleItems = collapseEquivalentSessions(schedule.courses
       .flatMap((course) => courseRenderItems(course, state.selectedWeek))
@@ -1745,16 +1749,17 @@
       .filter((item) => item.isActive || schedule.showOtherWeek));
     layoutCourseItems(visibleItems).forEach((item) => {
       const dayIndex = days.indexOf(item.day);
-      if (dayIndex < 0) return;
+      if (dayIndex < 0 || item.start > exportNodes) return;
+      const itemEnd = Math.min(item.end, exportNodes);
       const gap = 1;
       const x = timeWidth + dayWidth * dayIndex + dayWidth * item.laneIndex / item.laneCount + gap;
       const y = bodyTop + (item.start - 1) * rowHeight + gap;
       const w = dayWidth / item.laneCount - gap * 2;
-      const h = (item.end - item.start + 1) * rowHeight - gap * 2;
+      const h = (itemEnd - item.start + 1) * rowHeight - gap * 2;
       const bg = tintColor(item.course.color, item.isActive ? 0.76 : 0.88);
       const textColor = item.isActive ? courseTextColor(item.course.color) : "#6f7785";
       ctx.save();
-      ctx.globalAlpha = backgroundImage ? 0.88 : 1;
+      ctx.globalAlpha = backgroundImage ? 0.9 : 1;
       roundRect(ctx, x, y, w, h, 10, bg);
       ctx.restore();
       strokeRoundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, 10, "rgba(255,255,255,0.42)", 1);
