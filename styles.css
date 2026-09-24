@@ -3317,3 +3317,28 @@ html.has-custom-bg .course-card::before {
     gap: 10px;
   }
 }
+
+/* Compact equal background action buttons. */
+.background-actions-final {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.background-actions-final .plain-button,
+.background-actions-final .primary-button,
+.background-actions-final .background-pick {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 0 6px !important;
+  border-radius: 14px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  font-weight: 760 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
