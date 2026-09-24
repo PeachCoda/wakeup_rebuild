@@ -1699,19 +1699,20 @@
 
     const backgroundImage = schedule.backgroundImage ? await loadCanvasImage(schedule.backgroundImage).catch(() => null) : null;
     const backgroundOpacity = clamp(Number(schedule.backgroundOpacity) || 70, 20, 100) / 100;
+    const shellAlpha = backgroundImage ? Math.max(0.34, 0.9 - backgroundOpacity * 0.5) : 0;
     const wrapAlpha = backgroundImage ? Math.max(0.03, 0.34 - backgroundOpacity * 0.26) : 1;
     const gridAlpha = backgroundImage ? Math.max(0.02, 0.2 - backgroundOpacity * 0.16) : 1;
     if (backgroundImage) {
       ctx.save();
-      ctx.globalAlpha = backgroundOpacity * 0.78;
+      ctx.globalAlpha = backgroundOpacity;
       ctx.filter = "blur(24px) saturate(1.08)";
-      drawImageCoverAdjusted(ctx, backgroundImage, -34, -34, width + 68, height + 68, schedule, 1.08);
+      drawImageCoverAdjusted(ctx, backgroundImage, -34, -34, width + 68, height + 68, schedule, 1.04);
       ctx.restore();
       ctx.save();
-      ctx.globalAlpha = backgroundOpacity * 0.16;
+      ctx.globalAlpha = backgroundOpacity * backgroundOpacity;
       drawImageCoverAdjusted(ctx, backgroundImage, 0, 0, width, height, schedule);
       ctx.restore();
-      ctx.fillStyle = `rgba(255,255,255,${Math.max(0.34, 0.9 - backgroundOpacity * 0.5)})`;
+      ctx.fillStyle = `rgba(255,255,255,${shellAlpha})`;
       ctx.fillRect(0, 0, width, height);
     }
 
