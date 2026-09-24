@@ -2704,7 +2704,7 @@ body {
 }
 
 .page-bg-main {
-  background-size: contain;
+  background-size: cover;
   opacity: var(--preview-strength, 0.7);
 }
 
@@ -2834,19 +2834,19 @@ html.has-custom-bg .course-card {
   position: absolute;
   inset: 0;
   background-image: var(--preview-bg);
-  background-position: center;
+  background-position: var(--preview-bg-position, center);
+  background-size: var(--preview-bg-size, cover);
   background-repeat: no-repeat;
 }
 
 .background-preview::before {
   inset: -22px;
-  background-size: cover;
   filter: blur(16px) saturate(1.08);
   opacity: var(--preview-strength, 0.7);
 }
 
 .background-preview::after {
-  background-size: contain;
+  background-size: var(--preview-bg-size, cover);
 }
 
 .background-preview.empty::before,

@@ -133,6 +133,10 @@
           showTime: true,
           backgroundImage: "",
           backgroundOpacity: 70,
+          backgroundAspect: 0,
+          backgroundScale: 1,
+          backgroundOffsetX: 0,
+          backgroundOffsetY: 0,
           timeTable: cloneDefaultTimeTable(13),
           courses: []
         }
@@ -168,6 +172,10 @@
         showTime: schedule.showTime !== false,
         backgroundImage: typeof schedule.backgroundImage === "string" ? schedule.backgroundImage : "",
         backgroundOpacity: clamp(Number(schedule.backgroundOpacity) || 70, 20, 100),
+        backgroundAspect: Math.max(0, Number(schedule.backgroundAspect) || 0),
+        backgroundScale: clamp(Number(schedule.backgroundScale) || 1, 1, 3),
+        backgroundOffsetX: clamp(Number(schedule.backgroundOffsetX) || 0, -1, 1),
+        backgroundOffsetY: clamp(Number(schedule.backgroundOffsetY) || 0, -1, 1),
         timeTable: cloneDefaultTimeTable(13),
         courses: Array.isArray(schedule.courses) ? schedule.courses.map(normalizeCourse).filter(Boolean) : []
       }))
@@ -260,7 +268,6 @@
 
   function applyScheduleBackground(schedule) {
     const value = schedule?.backgroundImage || "";
-    const image = value ? `url(${JSON.stringify(value)})` : "";
     const opacity = clamp(Number(schedule?.backgroundOpacity) || 70, 20, 100);
     const strength = opacity / 100;
     const shellAlpha = Math.max(0.34, 0.9 - strength * 0.5).toFixed(2);
@@ -273,15 +280,54 @@
     document.documentElement.style.setProperty("--bg-wrap-alpha", wrapAlpha);
     document.documentElement.style.setProperty("--bg-grid-alpha", gridAlpha);
     document.documentElement.style.setProperty("--preview-strength", String(strength));
-    if (elements.pageBackgroundBlur) elements.pageBackgroundBlur.style.backgroundImage = image;
-    if (elements.pageBackgroundMain) elements.pageBackgroundMain.style.backgroundImage = image;
+    applyBackgroundToElement(elements.pageBackgroundBlur, schedule, { blur: true });
+    applyBackgroundToElement(elements.pageBackgroundMain, schedule);
     if (elements.appShell) {
-      elements.appShell.style.backgroundImage = value ? `linear-gradient(rgba(255, 255, 255, ${shellAlpha}), rgba(255, 255, 255, ${shellAlpha})), ${image}` : "";
-      elements.appShell.style.backgroundSize = value ? "auto, cover" : "";
-      elements.appShell.style.backgroundPosition = value ? "center, center" : "";
+      elements.appShell.style.backgroundImage = "";
+      elements.appShell.style.backgroundSize = "";
+      elements.appShell.style.backgroundPosition = "";
     }
     updateBackgroundSettingsUi(schedule);
     document.documentElement.classList.toggle("has-custom-bg", Boolean(value));
+  }
+
+  function getBackgroundMetrics(schedule, width, height, extraScale = 1) {
+    const aspect = Math.max(0, Number(schedule?.backgroundAspect) || 0);
+    if (!aspect) return null;
+    const containerAspect = width / Math.max(1, height);
+    const coverWidth = containerAspect > aspect ? width : height * aspect;
+    const coverHeight = containerAspect > aspect ? width / aspect : height;
+    const scale = clamp(Number(schedule?.backgroundScale) || 1, 1, 3) * extraScale;
+    const drawWidth = coverWidth * scale;
+    const drawHeight = coverHeight * scale;
+    const maxOffsetX = Math.max(0, (drawWidth - width) / 2);
+    const maxOffsetY = Math.max(0, (drawHeight - height) / 2);
+    const offsetX = clamp((Number(schedule?.backgroundOffsetX) || 0) * width, -maxOffsetX, maxOffsetX);
+    const offsetY = clamp((Number(schedule?.backgroundOffsetY) || 0) * height, -maxOffsetY, maxOffsetY);
+    return { drawWidth, drawHeight, offsetX, offsetY };
+  }
+
+  function applyBackgroundToElement(element, schedule, options = {}) {
+    if (!element) return;
+    const value = schedule?.backgroundImage || "";
+    if (!value) {
+      element.style.backgroundImage = "";
+      element.style.backgroundSize = "";
+      element.style.backgroundPosition = "";
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    const width = Math.max(1, rect.width || window.innerWidth);
+    const height = Math.max(1, rect.height || window.innerHeight);
+    const metrics = getBackgroundMetrics(schedule, width, height, options.blur ? 1.08 : 1);
+    element.style.backgroundImage = `url(${JSON.stringify(value)})`;
+    if (!metrics) {
+      element.style.backgroundSize = "cover";
+      element.style.backgroundPosition = "center";
+      return;
+    }
+    element.style.backgroundSize = `${metrics.drawWidth.toFixed(1)}px ${metrics.drawHeight.toFixed(1)}px`;
+    element.style.backgroundPosition = `calc(50% + ${metrics.offsetX.toFixed(1)}px) calc(50% + ${metrics.offsetY.toFixed(1)}px)`;
   }
 
   function updateBackgroundSettingsUi(schedule = currentSchedule()) {
@@ -293,6 +339,12 @@
       elements.backgroundPreview.classList.toggle("empty", !image);
       elements.backgroundPreview.style.setProperty("--preview-bg", image || "none");
       elements.backgroundPreview.style.setProperty("--preview-strength", String(opacity / 100));
+      if (image) {
+        const rect = elements.backgroundPreview.getBoundingClientRect();
+        const metrics = getBackgroundMetrics(schedule, Math.max(1, rect.width || 1), Math.max(1, rect.height || 1));
+        elements.backgroundPreview.style.setProperty("--preview-bg-size", metrics ? `${metrics.drawWidth.toFixed(1)}px ${metrics.drawHeight.toFixed(1)}px` : "cover");
+        elements.backgroundPreview.style.setProperty("--preview-bg-position", metrics ? `calc(50% + ${metrics.offsetX.toFixed(1)}px) calc(50% + ${metrics.offsetY.toFixed(1)}px)` : "center");
+      }
       elements.backgroundPreview.innerHTML = image ? "" : "<span>还没有背景图片</span>";
     }
   }
@@ -1603,9 +1655,9 @@
       ctx.save();
       ctx.globalAlpha = backgroundOpacity;
       ctx.filter = "blur(24px)";
-      drawImageCover(ctx, backgroundImage, -36, -36, width + 72, height + 72);
+      drawImageCoverAdjusted(ctx, backgroundImage, -36, -36, width + 72, height + 72, schedule, 1.08);
       ctx.filter = "none";
-      drawImageContain(ctx, backgroundImage, 0, 0, width, height);
+      drawImageCoverAdjusted(ctx, backgroundImage, 0, 0, width, height, schedule);
       ctx.restore();
       ctx.fillStyle = `rgba(255, 255, 255, ${(0.7 - backgroundOpacity * 0.22).toFixed(2)})`;
       ctx.fillRect(0, 0, width, height);
@@ -1729,6 +1781,17 @@
     ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
   }
 
+  function drawImageCoverAdjusted(ctx, image, x, y, width, height, schedule, extraScale = 1) {
+    const metrics = getBackgroundMetrics(schedule, width, height, extraScale);
+    if (!metrics) {
+      drawImageCover(ctx, image, x, y, width, height);
+      return;
+    }
+    const drawX = x + width / 2 + metrics.offsetX - metrics.drawWidth / 2;
+    const drawY = y + height / 2 + metrics.offsetY - metrics.drawHeight / 2;
+    ctx.drawImage(image, drawX, drawY, metrics.drawWidth, metrics.drawHeight);
+  }
+
   function drawImageContain(ctx, image, x, y, width, height) {
     const scale = Math.min(width / image.width, height / image.height);
     const drawWidth = image.width * scale;
@@ -1742,9 +1805,28 @@
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = reject;
-      reader.onload = () => loadCanvasImage(reader.result).then((image) => resolve({ image, src: reader.result })).catch(reject);
+      reader.onload = () => loadCanvasImage(reader.result)
+        .then((image) => resizeWallpaperSource(image))
+        .then(resolve)
+        .catch(reject);
       reader.readAsDataURL(file);
     });
+  }
+
+  function resizeWallpaperSource(image) {
+    const maxSide = 1800;
+    const resize = Math.min(1, maxSide / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * resize));
+    const height = Math.max(1, Math.round(image.height * resize));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+    const src = canvas.toDataURL("image/jpeg", 0.84);
+    return loadCanvasImage(src).then((resizedImage) => ({ image: resizedImage, src }));
   }
 
   function openBackgroundCropper(image, src) {
@@ -1760,7 +1842,7 @@
     window.requestAnimationFrame(() => {
       const rect = elements.backgroundCropStage.getBoundingClientRect();
       const minScale = Math.max(rect.width / image.width, rect.height / image.height);
-      backgroundCropState = { image, src, minScale, scale: minScale, offsetX: 0, offsetY: 0, dragging: false, lastX: 0, lastY: 0 };
+      backgroundCropState = { image, src, minScale, scaleRatio: 1, offsetX: 0, offsetY: 0, dragging: false, lastX: 0, lastY: 0 };
       if (elements.backgroundCropScaleInput) elements.backgroundCropScaleInput.value = "100";
       updateBackgroundCropTransform();
     });
@@ -1776,8 +1858,9 @@
   function clampBackgroundCropOffset() {
     if (!backgroundCropState || !elements.backgroundCropStage) return;
     const rect = elements.backgroundCropStage.getBoundingClientRect();
-    const drawWidth = backgroundCropState.image.width * backgroundCropState.scale;
-    const drawHeight = backgroundCropState.image.height * backgroundCropState.scale;
+    const scale = backgroundCropState.minScale * backgroundCropState.scaleRatio;
+    const drawWidth = backgroundCropState.image.width * scale;
+    const drawHeight = backgroundCropState.image.height * scale;
     const maxX = Math.max(0, (drawWidth - rect.width) / 2);
     const maxY = Math.max(0, (drawHeight - rect.height) / 2);
     backgroundCropState.offsetX = clamp(backgroundCropState.offsetX, -maxX, maxX);
@@ -1787,17 +1870,17 @@
   function updateBackgroundCropTransform() {
     if (!backgroundCropState || !elements.backgroundCropImage) return;
     clampBackgroundCropOffset();
-    const percent = Math.round((backgroundCropState.scale / backgroundCropState.minScale) * 100);
+    const percent = Math.round(backgroundCropState.scaleRatio * 100);
     if (elements.backgroundCropScaleValue) elements.backgroundCropScaleValue.textContent = `${percent}%`;
+    const scale = backgroundCropState.minScale * backgroundCropState.scaleRatio;
     elements.backgroundCropImage.style.width = `${backgroundCropState.image.width}px`;
     elements.backgroundCropImage.style.height = `${backgroundCropState.image.height}px`;
-    elements.backgroundCropImage.style.transform = `translate(calc(-50% + ${backgroundCropState.offsetX}px), calc(-50% + ${backgroundCropState.offsetY}px)) scale(${backgroundCropState.scale})`;
+    elements.backgroundCropImage.style.transform = `translate(calc(-50% + ${backgroundCropState.offsetX}px), calc(-50% + ${backgroundCropState.offsetY}px)) scale(${scale})`;
   }
 
   function updateBackgroundCropScale() {
     if (!backgroundCropState) return;
-    const ratio = clamp(Number(elements.backgroundCropScaleInput?.value) || 100, 100, 300) / 100;
-    backgroundCropState.scale = backgroundCropState.minScale * ratio;
+    backgroundCropState.scaleRatio = clamp(Number(elements.backgroundCropScaleInput?.value) || 100, 100, 300) / 100;
     updateBackgroundCropTransform();
   }
 
@@ -1825,30 +1908,27 @@
     elements.backgroundCropStage?.releasePointerCapture?.(event.pointerId);
   }
 
-  function renderCroppedBackground() {
+  function getBackgroundCropTransform() {
     if (!backgroundCropState || !elements.backgroundCropStage) return null;
     const rect = elements.backgroundCropStage.getBoundingClientRect();
-    const aspect = rect.width / Math.max(1, rect.height);
-    const canvas = document.createElement("canvas");
-    canvas.width = 1080;
-    canvas.height = Math.round(canvas.width / aspect);
-    const ctx = canvas.getContext("2d");
-    const ratio = canvas.width / rect.width;
-    const drawWidth = backgroundCropState.image.width * backgroundCropState.scale * ratio;
-    const drawHeight = backgroundCropState.image.height * backgroundCropState.scale * ratio;
-    const drawX = canvas.width / 2 + backgroundCropState.offsetX * ratio - drawWidth / 2;
-    const drawY = canvas.height / 2 + backgroundCropState.offsetY * ratio - drawHeight / 2;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(backgroundCropState.image, drawX, drawY, drawWidth, drawHeight);
-    return canvas.toDataURL("image/jpeg", 0.84);
+    return {
+      image: backgroundCropState.src,
+      aspect: backgroundCropState.image.width / Math.max(1, backgroundCropState.image.height),
+      scale: backgroundCropState.scaleRatio,
+      offsetX: backgroundCropState.offsetX / Math.max(1, rect.width),
+      offsetY: backgroundCropState.offsetY / Math.max(1, rect.height)
+    };
   }
 
   function applyBackgroundCrop() {
-    const image = renderCroppedBackground();
-    if (!image) return;
+    const transform = getBackgroundCropTransform();
+    if (!transform) return;
     const schedule = currentSchedule();
-    schedule.backgroundImage = image;
+    schedule.backgroundImage = transform.image;
+    schedule.backgroundAspect = transform.aspect;
+    schedule.backgroundScale = transform.scale;
+    schedule.backgroundOffsetX = transform.offsetX;
+    schedule.backgroundOffsetY = transform.offsetY;
     saveState();
     closeBackgroundCropper();
     applyScheduleBackground(schedule);
@@ -1877,6 +1957,10 @@
   function clearBackgroundImage() {
     const schedule = currentSchedule();
     schedule.backgroundImage = "";
+    schedule.backgroundAspect = 1;
+    schedule.backgroundScale = 1;
+    schedule.backgroundOffsetX = 0;
+    schedule.backgroundOffsetY = 0;
     saveState();
     applyScheduleBackground(schedule);
     closeTopbarMenu();
@@ -2085,7 +2169,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-36").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-37").catch(() => {});
     });
   }
 
