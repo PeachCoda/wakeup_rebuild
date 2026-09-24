@@ -3359,3 +3359,10 @@ html.has-custom-bg .course-card::before {
   backdrop-filter: blur(16px) saturate(1.12) !important;
   -webkit-backdrop-filter: blur(16px) saturate(1.12) !important;
 }
+
+
+/* Toasts are disabled in app; keep the node inert if older code toggles it. */
+.toast,
+.toast.show {
+  display: none !important;
+}
