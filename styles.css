@@ -3288,3 +3288,32 @@ html.has-custom-bg .course-card::before {
 .background-scale-range[hidden] {
   display: none !important;
 }
+
+
+/* Background panel draft controls and compact sign-in title. */
+.signin-head h3 {
+  display: none !important;
+}
+
+.background-control-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.background-actions-final {
+  grid-template-columns: 1fr 1fr 1fr !important;
+}
+
+.background-actions-final .primary-button,
+.background-actions-final .plain-button {
+  min-height: 44px;
+  padding-inline: 8px;
+}
+
+@media (max-width: 390px) {
+  .background-control-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}

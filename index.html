@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=fakeup-icon-3" />
     <link rel="manifest" href="./manifest.json?v=fakeup-pwa-3" />
     <style>html,body{margin:0;background:#fff;}</style>
-    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-50" />
+    <link rel="stylesheet" href="./styles.css?v=fakeup-ui-51" />
   </head>
   <body>
     <div class="page-background" id="pageBackground" aria-hidden="true">
@@ -191,25 +191,28 @@
       <div class="background-preview" id="backgroundPreview">
         <span>还没有背景图片</span>
       </div>
-      <label class="background-range background-scale-range" id="backgroundScaleField" hidden>
-        <span>背景缩放 <strong id="backgroundCropScaleValue">100%</strong></span>
-        <input id="backgroundCropScaleInput" type="range" min="100" max="300" step="1" value="100" />
-      </label>
-      <div class="background-actions">
+      <div class="background-control-grid">
+        <label class="background-range background-scale-range" id="backgroundScaleField" hidden>
+          <span>缩放 <strong id="backgroundCropScaleValue">100%</strong></span>
+          <input id="backgroundCropScaleInput" type="range" min="100" max="300" step="1" value="100" />
+        </label>
+        <label class="background-range">
+          <span>透明度 <strong id="backgroundOpacityValue">70%</strong></span>
+          <input id="backgroundOpacityInput" type="range" min="20" max="100" step="5" value="70" />
+        </label>
+      </div>
+      <div class="background-actions background-actions-final">
         <label class="plain-button background-pick" for="backgroundInput">选择图片</label>
         <button class="plain-button" id="clearBackgroundBtn" type="button">清除背景</button>
+        <button class="primary-button" id="applyBackgroundBtn" type="button">应用</button>
       </div>
-      <label class="background-range">
-        <span>背景透明度 <strong id="backgroundOpacityValue">70%</strong></span>
-        <input id="backgroundOpacityInput" type="range" min="20" max="100" step="5" value="70" />
-      </label>
     </section>
 
 
     <input class="sr-only" id="backgroundInput" type="file" accept="image/*" />
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="./app.js?v=fakeup-skl-86"></script>
+    <script src="./app.js?v=fakeup-skl-87"></script>
   </body>
 </html>
 

@@ -65,6 +65,7 @@
     closeBackgroundBtn: document.querySelector("#closeBackgroundBtn"),
     backgroundInput: document.querySelector("#backgroundInput"),
     clearBackgroundBtn: document.querySelector("#clearBackgroundBtn"),
+    applyBackgroundBtn: document.querySelector("#applyBackgroundBtn"),
     backgroundScaleField: document.querySelector("#backgroundScaleField"),
     backgroundCropStage: document.querySelector("#backgroundPreview"),
     backgroundCropScaleInput: document.querySelector("#backgroundCropScaleInput"),
@@ -111,6 +112,7 @@
   let signInAccountLoggedIn = false;
   let signInAutoSubmitTimer = null;
   let backgroundCropState = null;
+  let backgroundDraft = null;
   function createDefaultState() {
     const scheduleId = uid();
     return {
@@ -262,6 +264,17 @@
     localStorage.setItem(storageKey, JSON.stringify(state));
   }
 
+  function cloneBackgroundSettings(schedule = currentSchedule()) {
+    return {
+      backgroundImage: schedule?.backgroundImage || "",
+      backgroundOpacity: clamp(Number(schedule?.backgroundOpacity) || 70, 20, 100),
+      backgroundAspect: Math.max(0, Number(schedule?.backgroundAspect) || 0),
+      backgroundScale: clamp(Number(schedule?.backgroundScale) || 1, 1, 3),
+      backgroundOffsetX: clamp(Number(schedule?.backgroundOffsetX) || 0, -1, 1),
+      backgroundOffsetY: clamp(Number(schedule?.backgroundOffsetY) || 0, -1, 1)
+    };
+  }
+
   function applyScheduleBackground(schedule) {
     const value = schedule?.backgroundImage || "";
     const opacity = clamp(Number(schedule?.backgroundOpacity) || 70, 20, 100);
@@ -283,7 +296,7 @@
       elements.appShell.style.backgroundSize = "";
       elements.appShell.style.backgroundPosition = "";
     }
-    updateBackgroundSettingsUi(schedule);
+    updateBackgroundSettingsUi(backgroundDraft || schedule);
     document.documentElement.classList.toggle("has-custom-bg", Boolean(value));
   }
 
@@ -352,10 +365,11 @@
 
   function openBackgroundPanel() {
     closeTopbarMenu();
+    backgroundDraft = cloneBackgroundSettings();
     updateBackgroundPreviewAspect();
     elements.backgroundBackdrop.hidden = false;
     elements.backgroundPanel.hidden = false;
-    window.requestAnimationFrame(() => updateBackgroundSettingsUi());
+    window.requestAnimationFrame(() => updateBackgroundSettingsUi(backgroundDraft));
   }
 
   function updateBackgroundPreviewAspect() {
@@ -368,6 +382,22 @@
   function closeBackgroundPanel() {
     if (elements.backgroundBackdrop) elements.backgroundBackdrop.hidden = true;
     if (elements.backgroundPanel) elements.backgroundPanel.hidden = true;
+    backgroundDraft = null;
+  }
+
+  function previewBackgroundDraft() {
+    updateBackgroundSettingsUi(backgroundDraft || cloneBackgroundSettings());
+  }
+
+  function applyBackgroundDraft() {
+    if (!backgroundDraft) return;
+    const schedule = currentSchedule();
+    Object.assign(schedule, cloneBackgroundSettings(backgroundDraft));
+    saveState();
+    applyScheduleBackground(schedule);
+    backgroundDraft = cloneBackgroundSettings(schedule);
+    updateBackgroundSettingsUi(backgroundDraft);
+    showToast("背景已应用");
   }
 
   function render() {
@@ -1839,21 +1869,17 @@
   }
 
   function updateBackgroundCropTransform() {
-    const schedule = currentSchedule();
-    saveState();
-    applyScheduleBackground(schedule);
+    previewBackgroundDraft();
   }
 
   function updateBackgroundCropScale() {
-    const schedule = currentSchedule();
-    if (!schedule?.backgroundImage) return;
-    schedule.backgroundScale = clamp(Number(elements.backgroundCropScaleInput?.value) || 100, 100, 300) / 100;
+    if (!backgroundDraft?.backgroundImage) return;
+    backgroundDraft.backgroundScale = clamp(Number(elements.backgroundCropScaleInput?.value) || 100, 100, 300) / 100;
     updateBackgroundCropTransform();
   }
 
   function handleBackgroundCropPointerDown(event) {
-    const schedule = currentSchedule();
-    if (!schedule?.backgroundImage || !elements.backgroundCropStage) return;
+    if (!backgroundDraft?.backgroundImage || !elements.backgroundCropStage) return;
     backgroundCropState = { dragging: true, lastX: event.clientX, lastY: event.clientY };
     elements.backgroundCropStage.setPointerCapture?.(event.pointerId);
   }
@@ -1862,9 +1888,8 @@
     if (!backgroundCropState?.dragging || !elements.backgroundCropStage) return;
     event.preventDefault();
     const rect = elements.backgroundCropStage.getBoundingClientRect();
-    const schedule = currentSchedule();
-    schedule.backgroundOffsetX = clamp((Number(schedule.backgroundOffsetX) || 0) + (event.clientX - backgroundCropState.lastX) / Math.max(1, rect.width), -1, 1);
-    schedule.backgroundOffsetY = clamp((Number(schedule.backgroundOffsetY) || 0) + (event.clientY - backgroundCropState.lastY) / Math.max(1, rect.height), -1, 1);
+    backgroundDraft.backgroundOffsetX = clamp((Number(backgroundDraft.backgroundOffsetX) || 0) + (event.clientX - backgroundCropState.lastX) / Math.max(1, rect.width), -1, 1);
+    backgroundDraft.backgroundOffsetY = clamp((Number(backgroundDraft.backgroundOffsetY) || 0) + (event.clientY - backgroundCropState.lastY) / Math.max(1, rect.height), -1, 1);
     backgroundCropState.lastX = event.clientX;
     backgroundCropState.lastY = event.clientY;
     updateBackgroundCropTransform();
@@ -1887,17 +1912,14 @@
     }
     try {
       const { image, src } = await readImageFile(file);
-      const schedule = currentSchedule();
-      schedule.backgroundImage = src;
-      schedule.backgroundAspect = image.width / Math.max(1, image.height);
-      schedule.backgroundScale = 1;
-      schedule.backgroundOffsetX = 0;
-      schedule.backgroundOffsetY = 0;
-      saveState();
-      applyScheduleBackground(schedule);
-      render();
-      openBackgroundPanel();
-      showToast("背景已替换");
+      backgroundDraft = backgroundDraft || cloneBackgroundSettings();
+      backgroundDraft.backgroundImage = src;
+      backgroundDraft.backgroundAspect = image.width / Math.max(1, image.height);
+      backgroundDraft.backgroundScale = 1;
+      backgroundDraft.backgroundOffsetX = 0;
+      backgroundDraft.backgroundOffsetY = 0;
+      previewBackgroundDraft();
+      showToast("背景已载入，点应用后生效");
     } catch (error) {
       console.warn("读取背景失败。", error);
       showToast("图片读取失败");
@@ -1905,24 +1927,20 @@
   }
 
   function clearBackgroundImage() {
-    const schedule = currentSchedule();
-    schedule.backgroundImage = "";
-    schedule.backgroundAspect = 1;
-    schedule.backgroundScale = 1;
-    schedule.backgroundOffsetX = 0;
-    schedule.backgroundOffsetY = 0;
-    saveState();
-    applyScheduleBackground(schedule);
-    closeTopbarMenu();
-    render();
-    showToast("背景已清除");
+    backgroundDraft = backgroundDraft || cloneBackgroundSettings();
+    backgroundDraft.backgroundImage = "";
+    backgroundDraft.backgroundAspect = 0;
+    backgroundDraft.backgroundScale = 1;
+    backgroundDraft.backgroundOffsetX = 0;
+    backgroundDraft.backgroundOffsetY = 0;
+    previewBackgroundDraft();
+    showToast("已清除预览，点应用后生效");
   }
 
   function updateBackgroundOpacity() {
-    const schedule = currentSchedule();
-    schedule.backgroundOpacity = clamp(Number(elements.backgroundOpacityInput?.value) || 70, 20, 100);
-    saveState();
-    applyScheduleBackground(schedule);
+    backgroundDraft = backgroundDraft || cloneBackgroundSettings();
+    backgroundDraft.backgroundOpacity = clamp(Number(elements.backgroundOpacityInput?.value) || 70, 20, 100);
+    previewBackgroundDraft();
   }
 
   function formatWeekSubtitle(schedule, weekStart) {
@@ -2093,6 +2111,7 @@
   elements.backgroundOpacityInput?.addEventListener("input", updateBackgroundOpacity);
   elements.backgroundInput?.addEventListener("change", handleBackgroundInputChange);
   elements.clearBackgroundBtn?.addEventListener("click", clearBackgroundImage);
+  elements.applyBackgroundBtn?.addEventListener("click", applyBackgroundDraft);
   elements.backgroundCropScaleInput?.addEventListener("input", updateBackgroundCropScale);
   elements.backgroundCropStage?.addEventListener("pointerdown", handleBackgroundCropPointerDown);
   elements.backgroundCropStage?.addEventListener("pointermove", handleBackgroundCropPointerMove);
@@ -2110,7 +2129,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-38").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=fakeup-pwa-39").catch(() => {});
     });
   }
 
