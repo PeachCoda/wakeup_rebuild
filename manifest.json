@@ -1,7 +1,7 @@
 {
   "name": "FakeUp",
   "short_name": "FakeUp",
-  "description": "轻量课表查看与 PDF 导入工具",
+  "description": "杭电课表与上课啦签到",
   "lang": "zh-CN",
   "start_url": "./",
   "scope": "./",
