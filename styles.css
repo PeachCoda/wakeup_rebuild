@@ -2649,10 +2649,6 @@ body {
 }
 
 /* Auto-submit sign-in keeps the panel compact. */
-.signin-actions-single:has(#signInSubmitBtn[hidden]) {
-  display: none !important;
-}
-
 .signin-keypad {
   margin-bottom: 0 !important;
 }
