@@ -1,7 +1,7 @@
 {
   "name": "FakeUp",
   "short_name": "FakeUp",
-  "description": "杭电课表与上课啦签到",
+  "description": "只是一个课表",
   "lang": "zh-CN",
   "start_url": "./",
   "scope": "./",
